@@ -2,4 +2,3 @@ db/
 logs/
 __pycache__
 gbf_keys.log
-gbf_asset_requestor.py

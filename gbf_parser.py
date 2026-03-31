@@ -1,8 +1,8 @@
 import json
 from dataclasses import dataclass
-from gbf_asset_requestor import wiki_dl
+from gbf_asset_requestor import wiki_dl_char, wiki_dl_summon
 from typing import Any, Dict
-from gbf_party import Party, Character 
+from gbf_party import Party, Character, Summon
 import os
 from pathlib import Path
 
@@ -15,55 +15,15 @@ class Parser:
     def __init__(self, json_data: Dict[str, Any]) -> None:
         self.data = json_data
         self.ability_queue = list()
+        self.combat_log = list()
+
+    def parse(self) -> Party:
+        members = self._parse_members()
+        summons = self._parse_summons()
+        return Party(members, summons)
 
     def set_data(self, json_data: Dict[str, Any]):
         self.data = json_data
-
-    def get_asset_id(self) -> list[str]:
-        path = Path("./db")
-        return [f.stem for f in path.iterdir() if f.is_file()]
-
-    def parse_party(self) -> Party:
-        characters = list()
-        player = self.data.get("player")
-
-        if not player or not isinstance(player, dict):
-            return None
-
-        party_members = player.get("param", [])
-        party_members_number = player.get("number", 0)
-        asset_ids = self.get_asset_id()
-
-        for i, member in enumerate(party_members):
-            if i >= party_members_number:
-                break
-
-            char_pid = str(member.get("pid", ""))
-
-            found = False
-            for filename in asset_ids:
-                if char_pid in filename:
-                    img_path = f"./db/{filename}.jpg" 
-                    found = True
-                    break
-
-            if not found:
-                img_path = wiki_dl(char_pid)
-            try:
-                char = Character(
-                    name=member.get("name", "Unknown"),
-                    position=i,
-                    maxhp=member.get("hpmax", 0),
-                    id=char_pid,
-                    img=img_path,
-                )
-                characters.append(char)
-            except Exception as e:
-                print(f"Error parsing member {i}: {e}")
-                continue
-
-        
-        return Party(characters)
 
     def parse_damage(self, party: Party):
         if not party or len(party.members) == 0:
@@ -98,7 +58,96 @@ class Parser:
                 self._parse_dead_character(action, party)
 
         print("---------------------------------------------")
-             
+
+    def get_inventory() -> None:
+        
+        pass
+
+    def parse_combat_log(self) -> None:
+
+        pass
+
+    def add_combat_log(self, log: str) -> None:
+        self.combat_log.append(log) 
+        pass
+
+
+    def get_asset_id(self) -> list[str]:
+        path = Path("./db")
+        return [f.stem for f in path.iterdir() if f.is_file()]
+
+    def _parse_members(self) -> list[Character]:
+        characters = list()
+        player = self.data.get("player")
+        if not player or not isinstance(player, dict):
+            return None
+
+        party_members = player.get("param", [])
+        party_members_number = player.get("number", 0)
+        asset_ids = self.get_asset_id()
+
+        for i, member in enumerate(party_members):
+            if i >= party_members_number:
+                break
+
+            char_pid = str(member.get("pid", ""))
+
+            found = False
+            for filename in asset_ids:
+                if char_pid in filename:
+                    img_path = f"./db/{filename}.jpg" 
+                    found = True
+                    break
+
+            if not found:
+                img_path = wiki_dl_char(char_pid)
+            try:
+                char = Character(
+                    name=member.get("name", "Unknown"),
+                    position=i,
+                    maxhp=member.get("hpmax", 0),
+                    id=char_pid,
+                    img=img_path,
+                )
+                characters.append(char)
+            except Exception as e:
+                print(f"Error parsing member {i}: {e}")
+                continue
+        return characters
+      
+
+    def _parse_summons(self) -> list[Summon]:
+        summons = list()
+        summs = self.data.get("summon")
+        if not summs or not isinstance(summs, list):
+            return None
+
+        asset_ids = self.get_asset_id()
+        for i, s in enumerate(summs):
+            summon_id = str(s.get("image_id", ""))
+            if not summon_id:
+                continue
+
+            img_path = None
+            found = False
+            for filename in asset_ids:
+                if summon_id in filename:
+                    img_path = f"./db/{filename}.jpg"
+                    found = True
+                    break
+            if not found:
+                img_path = wiki_dl_summon(summon_id)
+
+            summon = Summon(
+                position=i,
+                name=s.get("name"),
+                cd=s.get("require"),
+                img = img_path,
+                id = summon_id
+            )    
+            summons.append(summon)
+
+        return summons
 
     def _parse_normal_attack(self, action, party: Party):
         attacker_idx = action.get("pos") 

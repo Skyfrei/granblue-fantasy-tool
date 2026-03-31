@@ -1,9 +1,10 @@
 import sys
 import requests
+import os
 from gbf_asset_requestor import get_wiki_image_by_id as wiki_id
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QFrame, QScrollArea, QSizePolicy
+    QLabel, QFrame, QScrollArea, QSizePolicy, QGridLayout, QPushButton
 )
 from PySide6.QtCore import Qt, QThread, Signal, Slot
 from PySide6.QtGui import (
@@ -24,23 +25,28 @@ BORDER       = "#252a38"
 BAR_FILL     = "#4a90d9"
 
 # ── Image Threading (Improved Quality) ─────────────────────────────────────
-class ImageDownloader(QThread):
-    finished = Signal(QPixmap, str)
+class ImageAssigner(QThread):
+    finished = Signal(QImage, str)
 
     def __init__(self, char_id):
         super().__init__()
         self.char_id = char_id
 
     def run(self):
-        wiki_url = wiki_id(self.char_id)
-        if not wiki_url: return
-        try:
-            r = requests.get(wiki_url, headers={'User-Agent': 'GBF_Meter/1.0'}, timeout=5)
-            if r.status_code == 200:
-                img = QImage()
-                img.loadFromData(r.content)
-                self.finished.emit(QPixmap.fromImage(img), self.char_id)
-        except: pass
+        paths_to_check = [
+            f"./db/{self.char_id}.jpg",
+            f"./db/{self.char_id}.png",
+        ]
+        
+        image = QImage()
+        for path in paths_to_check:
+            if os.path.exists(path):
+                image.load(path)
+                break
+        if not image.isNull():
+            self.finished.emit(image, self.char_id)
+        else:
+            print(f"DEBUG: Asset {self.char_id} not found in ./db/")
 
 class CharacterIcon(QLabel):
     def __init__(self):
@@ -64,7 +70,7 @@ class CharacterIcon(QLabel):
         self.setPixmap(scaled)
 
     def load_id(self, char_id):
-        self.downloader = ImageDownloader(char_id)
+        self.downloader = ImageAssigner(char_id)
         # Ensure we use the two-argument signature from your Signal
         self.downloader.finished.connect(self.set_initial_pixmap)
         self.downloader.start()
@@ -80,14 +86,18 @@ class CharacterIcon(QLabel):
 
     def update_scaled_pixmap(self):
         if self.original_pixmap and not self.original_pixmap.isNull():
-            # Use SmoothTransformation to maintain resolution
-            scaled = self.original_pixmap.scaled(
+            # 1. Scale the QImage (still a QImage here)
+            scaled_img = self.original_pixmap.scaled(
                 self.size(), 
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
+                Qt.AspectRatioMode.KeepAspectRatio, 
                 Qt.TransformationMode.SmoothTransformation
             )
-            self.setPixmap(scaled)
-
+            
+            # 2. CONVERT to QPixmap specifically for the QLabel 
+            final_pixmap = QPixmap.fromImage(scaled_img)
+            
+            # 3. Set it (this won't crash now)
+            self.setPixmap(final_pixmap)
 class DamageBar(QWidget):
     def __init__(self, fraction=0.0):
         super().__init__()
@@ -154,41 +164,155 @@ class DpsRow(QWidget):
         bg = BG_ROW_ODD if rank % 2 else BG_ROW_EVEN
         self.setStyleSheet(f"background: {bg}; border-radius: 4px; margin: 2px;")
 
+class QSummons(QWidget):
+    def __init__(self):
+        super().__init__()
+        # 180px height works well for two rows of icons
+        self.setFixedHeight(180) 
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(5, 5, 5, 5)
+        self.grid.setSpacing(5)
+
+        # Create 6 slots
+        self.slots = [CharacterIcon() for _ in range(6)]
+
+        # Row 0
+        self.grid.addWidget(self.slots[0], 0, 0) # Main
+        self.grid.addWidget(self.slots[1], 0, 1) # Sub 1
+        self.grid.addWidget(self.slots[2], 0, 2) # Sub 2
+
+        # Row 1
+        self.grid.addWidget(self.slots[3], 1, 0) # Sub 3
+        self.grid.addWidget(self.slots[4], 1, 1) # Sub 4
+        self.grid.addWidget(self.slots[5], 1, 2) # Support/Friend
+
+    def update_summons(self, summons_list):
+        """ Pushes summon IDs into the slots from the parser """
+        if not summons_list:
+            return
+            
+        for i, summon in enumerate(summons_list):
+            if i < len(self.slots):
+                # Use the img_id from your Summon objects
+                self.slots[i].load_id(summon.img_id)
+
+class QRaidInfo(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setFixedWidth(220) 
+        
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(10, 10, 10, 10)
+        self.layout.setSpacing(15)
+
+        # 1. Raid Banner Image
+        self.lbl_image = QLabel()
+        self.lbl_image.setFixedSize(200, 70)
+        self.lbl_image.setStyleSheet(f"background: #1a1d26; border: 1px solid {BORDER};")
+        self.lbl_image.setScaledContents(True)
+        # Placeholder text if no image is loaded
+        self.lbl_image.setText("RAID BANNER")
+        self.lbl_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # 2. Level and Name
+        self.lbl_name = QLabel("Lvl 200 Akasha")
+        self.lbl_name.setStyleSheet(f"color: {TEXT_MAIN}; font-weight: bold; font-size: 14px;")
+        self.lbl_name.setWordWrap(True)
+
+        # 3. HP Display
+        self.lbl_hp = QLabel("HP: 100.0%")
+        self.lbl_hp.setStyleSheet(f"color: {ACCENT_GOLD}; font-family: monospace; font-size: 13px;")
+
+        # 4. Action Button
+        self.btn_action = QPushButton("RAID DETAILS")
+        self.btn_action.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_action.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {ACCENT_GOLD};
+                color: #0d0f14;
+                border: none;
+                font-weight: bold;
+                padding: 8px;
+                border-radius: 2px;
+            }}
+            QPushButton:hover {{ background-color: #ffffff; }}
+        """)
+
+        # Add everything to the widget's internal vertical layout
+        self.layout.addWidget(self.lbl_image)
+        self.layout.addWidget(self.lbl_name)
+        self.layout.addWidget(self.lbl_hp)
+        self.layout.addWidget(self.btn_action)
+        
+        # Add a stretch at the bottom to keep everything at the top
+        self.layout.addStretch()
+
 class GBFDpsMeter(QMainWindow):
     def __init__(self, unused_path=None): # unused_path keeps signature for main.py
         super().__init__()
-        self.setWindowTitle("CYPHER // LIVE MONITOR")
+        self.setWindowTitle("Granblue Fantasy tool")
         self.resize(500, 700)
         self.setStyleSheet(f"background-color: {BG_DARK};")
 
         central = QWidget()
         self.setCentralWidget(central)
         self.main_lay = QVBoxLayout(central)
+        self.raid_info = QRaidInfo()
+        self.main_lay.addWidget(self.raid_info)
 
+        self.party_row_lay = QHBoxLayout()
+
+        
+        self.portrait_slots = [CharacterIcon() for _ in range(4)]
+        for p in self.portrait_slots:
+            p.setFixedSize(120, 180) # Adjust to your preference
+            self.party_row_lay.addWidget(p)
+
+        self.summons = QSummons()
+        self.party_row_lay.addWidget(self.summons)
+
+        self.main_lay.addLayout(self.party_row_lay)
+
+        # ROW 3: Scroll Area
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.scroll_content = QWidget()
         self.table_lay = QVBoxLayout(self.scroll_content)
         
-        # Start with 6 empty rows for a full party
         self.rows = [DpsRow(i+1) for i in range(6)]
         for r in self.rows:
             self.table_lay.addWidget(r)
+        
         self.table_lay.addStretch()
         self.scroll.setWidget(self.scroll_content)
-        self.main_lay.addWidget(self.scroll)
+        
+        # Stretch=1 makes the scroll area expand to fill the bottom
+        self.main_lay.addWidget(self.scroll, 1)
+        
+
+    
 
     @Slot(object)
     def update_ui_live(self, party: Party):
-        """ Receives the Party object directly from the thread """
-        members = party.get_members_list()
-        if not members: return
+        try:
+            members = party.get_members_list()
+            if not members: return
+            
+            summons = party.get_summon_list()
+            if summons:
+                self.summons.update_summons(summons)
 
-        # Sorting logic stays in UI to keep display ranked by DMG
-        sorted_members = sorted(members, key=lambda x: x.get_total_dmg(), reverse=True)
-        max_dmg = max(m.get_total_dmg() for m in members) if members else 1
-        
-        for i, member in enumerate(sorted_members):
-            if i < len(self.rows):
-                self.rows[i].update_from_char(member, max_dmg, i+1)
+            sorted_members = sorted(members, key=lambda x: x.get_total_dmg() or 0, reverse=True)
+            
+            max_val = max(m.get_total_dmg() for m in members)
+            max_dmg = max_val if max_val > 0 else 1
+            
+            for i, member in enumerate(sorted_members):
+                if i < len(self.rows):
+                    self.rows[i].update_from_char(member, max_dmg, i+1)
+                    
+        except Exception as e:
+            print(f"!!! HIDDEN UI ERROR: {e}")
+            import traceback
+            traceback.print_exc()

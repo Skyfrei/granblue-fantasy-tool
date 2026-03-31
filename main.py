@@ -25,7 +25,7 @@ def get_parser(json_data: Dict[str, any]) -> None:
     return p
 
 def get_party(par: Parser):
-    return par.parse_party()
+    return par.parse()
 
 def get_dmg(par: Parser, party: Party):
     par.parse_damage(party)
@@ -38,8 +38,8 @@ class CaptureThread(QThread):
         # Use your existing helper functions
         self.parser = get_parser({})
         self.active_party = None
-        self.keep_running = True # Flag to control the loop
         self.process = None
+        self.keep_running = True
 
     def run(self):
         with open(KEYLOG_FILE, 'w') as f:
@@ -57,28 +57,33 @@ class CaptureThread(QThread):
 
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE, text=True)
-
         for line in iter(process.stdout.readline, ""):
+            if not self.keep_running:
+                break
+
             clean_line = line.strip()
             if not line:
                 continue
             try:
-                clean_line = clean_line.replace(":", "")
                 decode = binascii.unhexlify(clean_line).decode('utf-8', errors='ignore')
-                
-                if decode.startswith("{"):
-                    json_data = json.loads(decode)
-                    self.parser.set_data(json_data)
+                if decode.startswith("{") and decode.endswith("}"):
+                    try:
+                        json_data = json.loads(decode)
+                        self.parser.set_data(json_data)
+                        
+                        if self.active_party is None:
+                            temp_party = get_party(self.parser)
+                            if temp_party and temp_party.get_members_list():
+                                self.active_party = temp_party
+
+                        if self.active_party:
+                            get_dmg(self.parser, self.active_party)
+                            self.update_signal.emit(self.active_party)
                     
-                    found_party = get_party(self.parser)
-                    if found_party:
-                        self.active_party = found_party
-                        self.active_party.get_member_names() 
-            
-                    if self.active_party:
-                        get_dmg(self.parser, self.active_party)
-                        # Notify the GUI that data has changed
-                        self.update_signal.emit(self.active_party)
+                    except json.JSONDecodeError:
+                        # This catches the "Expecting property name" error
+                        # and just moves to the next packet.
+                        continue
                         
             except Exception as e:
                 continue
@@ -86,32 +91,24 @@ class CaptureThread(QThread):
     def stop(self):
         self.keep_running = False
         if self.process:
-            self.process.terminate() # Tell tshark to stop
-            self.process.wait()      # Wait for it to clean up
+            print("Stopping TShark...")
+            self.process.terminate()
+            self.process.wait()
         self.wait()
 
 class LiveMeter(gbf_gui):
     def __init__(self):
         super().__init__() 
-        self.setWindowTitle("CYPHER // LIVE MONITOR")
+        self.setWindowTitle("Granblue Fantasy Tool")
         self.thread = CaptureThread()
         self.thread.update_signal.connect(self.update_ui_live)
         self.thread.start()
 
-    @Slot(object)
-    def update_ui_live(self, party: Party):
-        members = party.get_members_list()
-        if not members:
-            return
+    def closeEvent(self, event):
+        print("Closing... Cleaning up threads.")
+        self.thread.stop()
+        event.accept()
 
-        # Use the sorting and bar logic from your existing GUI
-        sorted_members = sorted(members, key=lambda x: x.get_total_dmg(), reverse=True)
-        max_dmg = max(m.get_total_dmg() for m in members) if members else 1
-        
-        # Update the rows (from Turn 16 code)
-        for i, member in enumerate(sorted_members):
-            if i < len(self.rows):
-                self.rows[i].update_from_char(member, max_dmg, i+1)
 
 # ── Entry Point ────────────────────────────────────────────────────────────
 if __name__ == "__main__":
