@@ -1,0 +1,4 @@
+db/
+logs/
+__pycache__
+gbf_keys.log
