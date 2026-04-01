@@ -1,7 +1,6 @@
 import sys
 import requests
 import os
-from gbf_asset_requestor import get_wiki_image_by_id as wiki_id
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QFrame, QScrollArea, QSizePolicy, QGridLayout, QPushButton,
@@ -36,8 +35,11 @@ class ImageAssigner(QThread):
 
     def run(self):
         paths_to_check = [
-            f"./db/{self.char_id}.jpg",
             f"./db/{self.char_id}.png",
+            f"./db/char_{self.char_id}.png",
+            f"./db/summon_{self.char_id}.png",
+            f"./db/raid_{self.char_id}.jpg",
+            self.char_id 
         ]
         
         image = QImage()
@@ -53,8 +55,7 @@ class ImageAssigner(QThread):
 class CharacterIcon(QLabel):
     def __init__(self):
         super().__init__()
-        # 1. Set a wide box to match your 280x158 images
-        self.setFixedSize(120, 68) 
+        self.setFixedSize(100, 100) 
         self.setStyleSheet(f"background: {BG_DARK}; border: 1px solid {BORDER};")
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.current_id = None
@@ -110,108 +111,84 @@ class CharacterIcon(QLabel):
 class DpsTable(QTableWidget):
     def __init__(self):
         super().__init__()
-        self.setColumnCount(7)
+        self.setColumnCount(6)
         self.setHorizontalHeaderLabels([
-            "RANK", "CHARACTER", "AUTO", "OUGI", "SKILL", "TOTAL", "CONTRIB %"
+            "RANK", "NAME", "AUTO", "OUGI", "SKILL", "TOTAL"
         ])
         
-        # Styling
+        # Set a tighter row height since there are no icons
+        self.verticalHeader().setDefaultSectionSize(35) 
         self.verticalHeader().setVisible(False)
-        self.setAlternatingRowColors(True)
-        self.setShowGrid(False)
-        self.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.setSelectionMode(QTableWidget.NoSelection)
         
-        # Header Behavior
         header = self.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents) # Rank
-        header.setSectionResizeMode(1, QHeaderView.Fixed)            # Character
-        self.setColumnWidth(1, 180) 
-        self.verticalHeader().setDefaultSectionSize(66)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setFrameStyle(QFrame.NoFrame)
-        self.setMinimumHeight(470)
-
+        header.setSectionResizeMode(1, QHeaderView.Stretch)          # Name
+        
+        self.setAlternatingRowColors(True)
+        self.setShowGrid(False)
+        self.setEditTriggers(QTableWidget.NoEditTriggers)
         self.setStyleSheet(f"""
             QTableWidget {{
                 background-color: {BG_DARK};
+                alternate-background-color: {BG_ROW_ODD}; /* Fixes the white rows */
                 color: {TEXT_MAIN};
                 gridline-color: {BORDER};
                 border: 1px solid {BORDER};
-                font-size: 13px;
+                selection-background-color: {ACCENT_GOLD};
             }}
             QTableWidget::item {{
-                padding: 5px;
                 background-color: {BG_ROW_EVEN};
-            }}
-            QTableWidget::item:alternate {{
-                background-color: {BG_ROW_ODD};
+                color: {TEXT_MAIN};
+                border: none;
             }}
             QHeaderView::section {{
                 background-color: {BG_PANEL};
                 color: {ACCENT_GOLD};
                 font-weight: bold;
-                padding: 4px;
                 border: 1px solid {BORDER};
             }}
         """)
 
-    def update_table(self, sorted_members, max_dmg):
+    def update_table(self, sorted_members, total_raid_dmg):
         self.setRowCount(len(sorted_members))
-        
         for i, char in enumerate(sorted_members):
             total = char.get_total_dmg()
             breakdown = char.get_breakdown()
             
-            # 0. Rank
+            # Rank & Name (Text only)
             self.setItem(i, 0, QTableWidgetItem(str(i+1)))
+            name_item = QTableWidgetItem(char.get_name())
+            name_item.setForeground(QBrush(QColor(ACCENT_GOLD)))
+            self.setItem(i, 1, name_item)
             
-            # 1. Character (Icon + Name)
-            # We reuse your CharacterIcon but smaller
-            char_widget = QWidget()
-            char_lay = QHBoxLayout(char_widget)
-            char_lay.setContentsMargins(2, 2, 2, 2)
-            
-            mini_icon = CharacterIcon()
-            mini_icon.setFixedSize(105,56) 
-            mini_icon.load_id(char.get_id())
-            
-            name_lbl = QLabel(char.get_name())
-            name_lbl.setStyleSheet(f"font-weight: bold; color: {ACCENT_GOLD};")
-            
-            char_lay.addWidget(mini_icon)
-            char_lay.addWidget(name_lbl)
-            self.setCellWidget(i, 1, char_widget)
-            
-            # 2-5. Damage Columns
-            self.setItem(i, 2, QTableWidgetItem(f"{breakdown['Autos']:,}"))
-            self.setItem(i, 3, QTableWidgetItem(f"{breakdown['Ougi']:,}"))
-            self.setItem(i, 4, QTableWidgetItem(f"{breakdown['Skills']:,}"))
+            # Damage columns
+            self.setItem(i, 2, QTableWidgetItem(f"{breakdown.get('Autos', 0):,}"))
+            self.setItem(i, 3, QTableWidgetItem(f"{breakdown.get('Ougi', 0):,}"))
+            self.setItem(i, 4, QTableWidgetItem(f"{breakdown.get('Skills', 0):,}"))
             self.setItem(i, 5, QTableWidgetItem(f"{total:,}"))
             
-            # 6. Contribution Bar
-            bar = QProgressBar()
-            bar.setFixedSize(100, 20)
-            bar.setMaximum(max_dmg)
-            bar.setValue(total)
-            bar.setTextVisible(True)
-            bar.setFormat(f"{(total/max_dmg * 100) if max_dmg > 0 else 0:.1f}%")
-            bar.setStyleSheet(f"""
-                QProgressBar {{
-                    border: 1px solid {BORDER};
-                    border-radius: 2px;
-                    background: {BG_DARK};
-                    text-align: center;
-                    color: white;
-                    height: 10px;
-                }}
-                QProgressBar::chunk {{
-                    background-color: {BAR_FILL};
-                }}
-            """)
-            self.setCellWidget(i, 6, bar)
+class QPartyIcons(QWidget):
+    def __init__(self):
+        super().__init__()
+        # Width: (60px * 3) + 20px for padding/spacing
+        self.setFixedWidth(300) 
+        self.setFixedHeight(200) 
+        
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(5, 5, 5, 5)
+        self.grid.setSpacing(5)
+        
+        self.slots = [CharacterIcon() for _ in range(6)]
+        for i, slot in enumerate(self.slots):
+            slot.setFixedSize(100, 100) # Ensure icons stay square
+            self.grid.addWidget(slot, i // 3, i % 3)
+
+    def update_party_icons(self, members):
+        for i, char in enumerate(members):
+            if i < len(self.slots):
+                # Using img_id as confirmed by your previous logs
+                self.slots[i].load_id(char.img_id)
 
 class QSummons(QWidget):
     def __init__(self):
@@ -221,9 +198,13 @@ class QSummons(QWidget):
         self.grid = QGridLayout(self)
         self.grid.setContentsMargins(5, 5, 5, 5)
         self.grid.setSpacing(5)
+        self.setFixedHeight(260) 
+        self.setFixedWidth(600)
 
         # Create 6 slots
         self.slots = [CharacterIcon() for _ in range(6)]
+        for slot in self.slots:
+            slot.setFixedSize(220, 120)
 
         # Row 0
         self.grid.addWidget(self.slots[0], 0, 0) # Main
@@ -240,10 +221,9 @@ class QSummons(QWidget):
         if not summons_list:
             return
             
-        for i, summon in enumerate(summons_list):
-            if i < len(self.slots):
-                # Use the img_id from your Summon objects
-                self.slots[i].load_id(summon.img_id)
+        for summon in summons_list:
+            if 0 <= summon.get_pos() < len(self.slots):
+                self.slots[summon.get_pos()].load_id(summon.img)
 
 class QRaidInfo(QWidget):
     def __init__(self):
@@ -339,6 +319,13 @@ class DamagePieChart(QChartView):
 
         self.chart.addSeries(self.series)
 
+class QRaidMembers(QWidget):
+    def __init__(self):
+        super().__init__()
+
+    def update_summons(self):
+        pass
+
 class GBFDpsMeter(QMainWindow):
     def __init__(self, unused_path=None): # unused_path keeps signature for main.py
         super().__init__()
@@ -350,36 +337,54 @@ class GBFDpsMeter(QMainWindow):
         self.setCentralWidget(central)
         self.main_lay = QVBoxLayout(central)
 
-        self.header_container = QWidget()
-        self.header_lay = QHBoxLayout(self.header_container)
-        self.header_lay.setContentsMargins(0, 0, 0, 0)
-        self.main_lay.addWidget(self.header_container)
+        header = self.build_header()
 
-        self.add_raid_info(self.header_lay)
-        self.header_lay.addStretch()
-        self.add_dmg_pie(self.header_lay)
-
-        self.middle_container = QWidget()
-        self.middle_lay = QHBoxLayout(self.middle_container)
-        self.middle_lay.setContentsMargins(0, 0, 0, 0)
-        self.main_lay.addWidget(self.middle_container)
-        self.add_dps_table(self.middle_lay)
+        self.add_raid(header)
+        header.addStretch()
+        self.add_dmg_pie(header)
 
 
-        self.summons_container = QWidget()
-        self.summons_lay = QHBoxLayout(self.summons_container)
-        self.add_summons(self.summons_lay)
-        self.summons_lay.addStretch()
-        self.main_lay.addWidget(self.summons_container)
+        middle = self.build_middle()
+        self.add_dps_table(middle)
+
+        bottom = self.build_bottom()
+        
+        self.add_summons(bottom)
+        bottom.addStretch()
+        self.party_portraits = QPartyIcons()
+        bottom.addWidget(self.party_portraits)
+        
+        self.add_raid_members(self.main_lay)
+
         self.main_lay.addStretch()
 
+
+    # methods
+    def build_header(self):
+        header_container = QWidget()
+        header_lay = QHBoxLayout(header_container)
+        header_lay.setContentsMargins(0, 0, 0, 0)
+        self.main_lay.addWidget(header_container)
+        return header_lay
+
+    def build_middle(self):
+        middle_container = QWidget()
+        middle_lay = QHBoxLayout(middle_container)
+        middle_lay.setContentsMargins(0, 0, 0, 0)
+        self.main_lay.addWidget(middle_container)
+        return middle_lay
+
+    def build_bottom(self):
+        footer_widget = QWidget()
+        footer_lay = QHBoxLayout(footer_widget)
+        self.main_lay.addWidget(footer_widget)
+        return footer_lay
 
     def add_dps_table(self, container):
         self.dps_table = DpsTable()
         container.addWidget(self.dps_table)
 
-
-    def add_raid_info(self, container):
+    def add_raid(self, container):
         self.raid_info = QRaidInfo()
         container.addWidget(self.raid_info)
 
@@ -391,34 +396,32 @@ class GBFDpsMeter(QMainWindow):
         self.summons = QSummons()
         container.addWidget(self.summons)
 
+    def add_raid_members(self, container):
+        self.raid_members = QRaidMembers()
+        container.addWidget(self.raid_members)
+
+
     @Slot(object)
     def update_ui_live(self, quest: Quest):
         try:
             members = quest.get_party().get_members_list()
             if not members: return
             
-            summons = quest.get_party().get_summon_list()
-            if summons:
-                self.summons.update_summons(summons)
-
-            raidinfo = quest.get_raid()
-            if raidinfo:
-                self.raid_info.update_raid_info(raidinfo)
-
+            # Update the new portrait grid
+            self.party_portraits.update_party_icons(members)
+            
+            # Update the table (now text-only)
+            total_raid_dmg = sum(m.get_total_dmg() for m in members)
             sorted_members = sorted(members, key=lambda x: x.get_total_dmg() or 0, reverse=True)
-           
-            total_raid_dmg = sum(m.total_dmg for m in members)
             self.dps_table.update_table(sorted_members, total_raid_dmg)
             
+            # Standard updates
+            self.raid_info.update_raid_info(quest.get_raid())
+
+            self.summons.update_summons(quest.get_party().get_summon_list())
             if sorted_members:
                 self.damage_pie.update_chart(sorted_members[0])
-            #pie
-            if sorted_members:
-                top_char = sorted_members[0]
-                self.damage_pie.update_chart(top_char)
-                    
+                
         except Exception as e:
-            print(f"!!! HIDDEN UI ERROR: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"UI Update Error: {e}")
 

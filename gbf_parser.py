@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from gbf_asset_requestor import wiki_dl_char, wiki_dl_summon
+from gbf_asset_requestor import download_asset
 from typing import Any, Dict
 from gbf_party import Party, Character, Summon, RaidInfo, Quest
 import os
@@ -56,6 +56,7 @@ class Parser:
                     if not isinstance(action, dict):
                         continue
                     action_type = action.get("cmd")
+                         
                     if action.get("from") == "player" or action.get("to") == "boss":
                         self._update_raid(raid_info, action)
 
@@ -136,23 +137,18 @@ class Parser:
 
         party_members = player.get("param", [])
         party_members_number = player.get("number", 0)
-        asset_ids = self.get_asset_id()
 
         for i, member in enumerate(party_members):
             if i >= party_members_number:
                 break
 
-            char_pid = str(member.get("pid", ""))
+            char_pid = str(member.get("pid_image", ""))
+            expected_filename = f"char_{char_pid}.png"
+            img_path = f"./db/{expected_filename}"
 
-            found = False
-            for filename in asset_ids:
-                if char_pid in filename:
-                    img_path = f"./db/{filename}.jpg" 
-                    found = True
-                    break
+            if not os.path.exists(img_path):
+                img_path = download_asset(char_pid, "char")
 
-            if not found:
-                img_path = wiki_dl_char(char_pid)
             try:
                 char = Character(
                     name=member.get("name", "Unknown"),
@@ -175,21 +171,16 @@ class Parser:
             if not summs or not isinstance(summs, list):
                 return None
 
-            asset_ids = self.get_asset_id()
             for i, s in enumerate(summs):
                 summon_id = str(s.get("image_id", ""))
                 if not summon_id:
                     continue
 
-                img_path = None
-                found = False
-                for filename in asset_ids:
-                    if summon_id in filename:
-                        img_path = f"./db/{filename}.jpg"
-                        found = True
-                        break
-                if not found:
-                    img_path = wiki_dl_summon(summon_id)
+                expected_filename = f"summon_{summon_id}.png"
+                img_path = f"./db/{expected_filename}"
+
+                if not os.path.exists(img_path):
+                    img_path = download_asset(summon_id, "summon")
 
                 summon = Summon(
                     position=i,
@@ -200,28 +191,25 @@ class Parser:
                 )    
                 summons.append(summon)
 
-            friend_summ = self.data.get("supporter")
-            friend_summ_name=friend_summ.get("name"),
-            friend_summ_id = friend_summ.get("image_id")
-            cooldown=friend_summ.get("require")
-            friend_img_path = ""
-            for filename in asset_ids:
-                if friend_summ_id in filename:
-                    friend_img_path = f"./db/{filename}.jpg"
-                    found = True
-                    break
+            supporter = self.data.get("supporter")
+            if supporter:
+                friend_id = str(supporter.get("image_id", ""))
+                friend_name = supporter.get("name")
 
-            if not found:
-                friend_img_path = wiki_dl_summon(friend_summ_id)
+                expected_filename = f"summon_{friend_id}.png"
+                img_path = f"./db/{expected_filename}"
 
-            summon = Summon(
-                position=5,
-                name=friend_summ_name,
-                cd=cooldown,
-                img=friend_img_path,
-                id=friend_summ_id
-            )
-            summons.append(summon)
+                if not os.path.exists(img_path):
+                    img_path = download_asset(friend_id, "summon")
+
+                summon = Summon(
+                    position=5,
+                    name=supporter.get("name"),
+                    cd=supporter.get("require"),
+                    img=img_path,
+                    id=friend_id
+                )
+                summons.append(summon)
 
             
         except Exception as e:

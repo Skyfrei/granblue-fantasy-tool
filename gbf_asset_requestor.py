@@ -1,89 +1,87 @@
 import requests
 import os
 
-def get_wiki_image_by_id(char_id, asset_type="char"):
+CDN_BASE = "https://prd-game-a-granbluefantasy.akamaized.net/assets_en/img/sp/assets"
+
+CDN_PATH_MAP = {
+    "char": "npc/s",
+    "summon": "summon/b",
+    "raid": "quest/l",
+    "leader": "leader/pm" # MC Classes/Skins
+}
+
+def get_wiki_image_by_id(asset_id, asset_type="char"):
     api_url = "https://gbf.wiki/api.php"
-    headers = {
-        'User-Agent': 'GBF-Tool/1.0'
-    }
-    
-    # ── Prefix Mapping ──
-    if asset_type == "char":
-        prefix = "Npc_s_" 
-    elif asset_type == "summon":
-        prefix = "Summon_m_"
-    elif asset_type == "raid":
-        prefix = "Quest_l_" # "l" is the standard banner size
-    else:
-        prefix = ""
+    headers = {'User-Agent': 'GBF-Asset-Downloader/1.1'}
+    prefix_map = {"char": "Npc_s_", "summon": "Summon_m_", "raid": "Quest_l_"}
+    prefix = prefix_map.get(asset_type, "")
 
     params = {
-        "action": "query",
-        "format": "json",
-        "list": "allimages",
-        "aifrom": f"{prefix}{char_id}", 
-        "ailimit": 1
+        "action": "query", "format": "json", "list": "allimages",
+        "aifrom": f"{prefix}{asset_id}", "ailimit": 1
     }
     
     try:
         response = requests.get(api_url, params=params, headers=headers)
-        response.raise_for_status() 
         data = response.json()
         images = data.get('query', {}).get('allimages', [])
-        
-        if not images:
-            return None
-            
+        if not images: return None
         filename = images[0]['name']
-        
-        if str(char_id) not in filename:
-            return None
-
+        if str(asset_id) not in filename: return None
         return f"https://gbf.wiki/Special:FilePath/{filename}"
-        
-    except Exception as e:
-        print(f"Metadata Error: {e}")
-    return None
+    except:
+        return None
 
-def wiki_dl_asset(char_id, asset_type="char"):
-    url = get_wiki_image_by_id(char_id, asset_type)
+def get_official_cdn_url(asset_id, asset_type):
+    """Constructs the official game link with MC/Leader redirection."""
+    id_str = str(asset_id)
+    
+    # Redirect MC/Classes (1xxxx) or Skins (4xxxx) to the leader folder
+    if asset_type == "char" and (id_str.startswith("4") or id_str.startswith("1")):
+        path = CDN_PATH_MAP["leader"]
+    else:
+        path = CDN_PATH_MAP.get(asset_type, "npc/s")
+
+    ext = "jpg" if asset_type == "raid" else "png"
+    # Format: BASE/FOLDER/ID.EXT
+    return f"{CDN_BASE}/{path}/{asset_id}.{ext}"
+
+def download_asset(asset_id, asset_type="char"):
+    """Wiki first, then Official CDN fallback."""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0'
+    }
+
+    # 1. CHECK WIKI FIRST
+    url = get_wiki_image_by_id(asset_id, asset_type)
+    source = "Wiki"
+
+    # 2. CHECK CDN SECOND (If Wiki search returns None)
     if not url:
-        print(f"Could not find URL for {asset_type} ID: {char_id}")
+        url = get_official_cdn_url(asset_id, asset_type)
+        source = "Official CDN"
+
+    if not url:
         return None
         
     try:
-        headers = {'User-Agent': 'GBF_DPS_Meter_Parser/1.0'}
         r = requests.get(url, headers=headers, timeout=10)
         r.raise_for_status()
         
-        # ── Specialized Naming ──
-        # We add a prefix to the local filename so your DB stays organized
-        prefix_map = {"char": "", "summon": "summon_", "raid": "quest_"}
-        save_name = f"{prefix_map.get(asset_type, '')}{char_id}.jpg"
-        file_path = f"./db/{save_name}"
+        # Local DB Naming: keep "char_" for MC so your UI finds it
+        type_prefix = {"char": "char_", "summon": "summon_", "raid": "raid_"}
+        prefix = type_prefix.get(asset_type, "char_")
+        ext = "jpg" if asset_type == "raid" else "png"
         
-        os.makedirs("./db", exist_ok=True) # Ensure folder exists
+        save_path = f"./db/{prefix}{asset_id}.{ext}"
+        os.makedirs("./db", exist_ok=True)
         
-        with open(file_path, "wb") as f:
+        with open(save_path, "wb") as f:
             f.write(r.content)
             
-        print(f"Successfully downloaded {asset_type} icon: {save_name}")
-        return file_path
+        print(f"Done! Downloaded {asset_id} from {source} -> {save_path}")
+        return save_path
         
     except Exception as e:
-        print(f"Failed to download {char_id}: {e}")
+        print(f"Critical error downloading {asset_id}: {e}")
         return None
-
-def wiki_dl_char(char_id):
-    return wiki_dl_asset(char_id, "char")
-
-def wiki_dl_summon(summon_id):
-    return wiki_dl_asset(summon_id, "summon")
-
-def wiki_dl_raid(quest_id):
-    return wiki_dl_asset(quest_id, "raid")
-
-
-
-if __name__ == "__main__":
-    wiki_dl_char("3040379000_01")
