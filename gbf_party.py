@@ -41,8 +41,8 @@ class Character:
 
         self.total_dmg_dealt = 0
         self.total_heal_done = 0
-        self.heal_done_list = list()
-        self.dmg_done_list = list()
+        self.heal_done_dict = {}
+        self.dmg_done_dict = {}
 
     def get_name(self):
         return self.name
@@ -65,19 +65,18 @@ class Character:
     def set_hp(self, hp):
         self.hp = hp
 
-    def heal(self, hp):
-        self.heal_done_list.append(hp)
+    def heal(self, hp: int, turn: int):
+        self.heal_done_dict.setdefault(turn, []).append(hp)
         self.total_heal_done += hp
 
     def get_total_heal_done(self):
         return self.total_heal_done
 
-    def get_heal_list(self) -> list[int]:
-        return self.heal_done_list
+    def get_heal_list(self, key: int) -> list[int]:
+        return self.heal_done_dict.get(key, [])
 
-
-    def deal_dmg(self, dmg, category="auto"):
-        self.total_dmg += dmg
+    def deal_dmg(self, dmg: int, turn: int, category="auto",):
+        self.dmg_done_dict.setdefault(turn, []).append(dmg)
         if category == "auto":
             self.auto_dmg += dmg
         elif category == "ougi":
@@ -85,15 +84,13 @@ class Character:
         elif category == "skill":
             self.skill_dmg += dmg
 
-        # fix this maybe for log
-        self.dmg_done_list.append(dmg)
         self.total_dmg_dealt = self.total_dmg_dealt + dmg
 
     def get_total_dmg(self):
         return self.total_dmg_dealt
     
-    def get_dmg_list(self) -> list[int]:
-        return self.dmg_done_list
+    def get_dmg_list(self, key: int) -> list[int]:
+        return self.dmg_done_dict.get(key, [])
 
     def get_breakdown(self) -> dict[str, int]:
         return {
@@ -169,17 +166,29 @@ class Party:
             print(mem.get_name())
 
 class Quest:
-    def __init__(self, raid: RaidInfo, party: Party):
+    def __init__(self, raid: RaidInfo, party: Party, quest_id: int, turn = 0):
         self.raid = raid
+        self.quest_id = quest_id
         self.party = party
+        self.turn = turn
         self.finished = False
 
     def get_raid(self) -> RaidInfo:
         return self.raid
+
+    def get_quest_id(self):
+        return self.quest_id
     
     def get_party(self) -> Party:
         return self.party
 
     def finish_quest(self):
         self.finished = True
+
+    def get_turn(self):
+        return self.turn
+
+    def set_turn(self, turn: int):
+        if turn > self.turn:
+            self.turn = turn
 

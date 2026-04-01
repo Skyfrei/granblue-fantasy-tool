@@ -16,20 +16,26 @@ class Parser:
         self.data = json_data
         self.ability_queue = list()
         self.combat_log = list()
+        self.active_turn = 0
 
     def parse(self) -> Quest:
         try:
+            turn = self._parse_turn()
             raidinfo = self._parse_raid()
             members = self._parse_members()
             summons = self._parse_summons()
             p = Party(members, summons)
-            quest = Quest(raidinfo, p)
+            quest_id = self.data.get("raid_id", "")
+            quest = Quest(raidinfo, p, quest_id, turn)
         except Exception as e:
             print(e)
         return quest
 
     def set_data(self, json_data: Dict[str, Any]):
         self.data = json_data
+
+    def _parse_turn(self) -> int:
+        return self.data.get("turn", 0)
 
     def _update_raid(self, raid_info: RaidInfo, data_chunk):
         if isinstance(data_chunk, dict):
@@ -44,6 +50,9 @@ class Parser:
     def parse_damage(self, quest: Quest):
         party = quest.get_party()
         raid_info = quest.get_raid()
+        quest.set_turn(self._parse_turn())
+        self.active_turn = quest.get_turn()
+        print(f"Quest: {quest.get_turn()}")
         try:
             if not party or len(party.members) == 0:
                 return
@@ -227,13 +236,13 @@ class Parser:
             sequences = dmg_payload
         elif isinstance(dmg_payload, dict):
             sequences = dmg_payload.values()
-
+        
         for hit_sequence in sequences:
             if not isinstance(hit_sequence, list):
                 continue
             for hit in hit_sequence:
                 dmg_dealt = int(hit.get("value", 0))
-                party_member.deal_dmg(dmg_dealt)
+                party_member.deal_dmg(dmg_dealt, self.active_turn)
                 print(f"Normal attack {party_member.get_name()}: {dmg_dealt}")
 
     def _record_ability(self, action):
@@ -249,6 +258,7 @@ class Parser:
         attacker_idx = action.get("total")[0]["pos"]
         party_member = party[attacker_idx]
         dmg_payload = action.get("list", [])
+
         sequences = []
         if isinstance(dmg_payload, list):
             sequences = dmg_payload
@@ -260,7 +270,7 @@ class Parser:
                 continue
             for hit in hit_sequence:
                 dmg_dealt = int(hit.get("value", 0))
-                party_member.deal_dmg(dmg_dealt)
+                party_member.deal_dmg(dmg_dealt, self.active_turn)
                 print(f"Loop damage {party_member.get_name()}: {dmg_dealt}")
 
     def _parse_ougi(self, action, party: Party):
@@ -271,7 +281,7 @@ class Parser:
             hits = entry.get("damage", [])
             for hit in hits:
                 dmg_val = int(hit.get("value", 0))
-                party_member.deal_dmg(dmg_val, "ougi")
+                party_member.deal_dmg(dmg_val, self.active_turn, "ougi")
                 print(f"Ougi {party_member.get_name()}: {dmg_val}")
 
     def _parse_single_hit_ability(self, action, party: Party):
@@ -287,7 +297,7 @@ class Parser:
         party_member = party[top_ability.pos]
         for hit in hits:
             dmg_dealt = int(hit.get("value", 0))
-            party[top_ability.pos].deal_dmg(dmg_dealt, "skill")
+            party[top_ability.pos].deal_dmg(dmg_dealt, self.active_turn, "skill")
             print(f"Single shot {party_member.get_name()}: {dmg_dealt}")
 
     def _parse_dead_character(self, action, party: Party):

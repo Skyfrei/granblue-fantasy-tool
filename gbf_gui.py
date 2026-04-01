@@ -4,11 +4,13 @@ import os
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QFrame, QScrollArea, QSizePolicy, QGridLayout, QPushButton,
-    QTableWidget, QHeaderView, QProgressBar, QTableWidgetItem
+    QTableWidget, QHeaderView, QProgressBar, QTableWidgetItem, QStyledItemDelegate,
+    QStyle
 )
-from PySide6.QtCore import Qt, QThread, Signal, Slot
+from PySide6.QtCore import Qt, QThread, Signal, Slot, QRect
 from PySide6.QtGui import (
-    QColor, QPainter, QLinearGradient, QBrush, QPixmap, QImage
+    QColor, QPainter, QLinearGradient, QBrush, QPixmap, QImage,
+    QPalette
 )
 from PySide6.QtCharts import QChart, QChartView, QPieSeries
 
@@ -24,6 +26,27 @@ ACCENT_GOLD  = "#c9a84c"
 TEXT_MAIN    = "#e8ecf4"
 BORDER       = "#252a38"
 BAR_FILL     = "#4a90d9"
+WIDGET_STYLE = f"""
+            QTableWidget {{
+                background-color: {BG_DARK};
+                alternate-background-color: {BG_ROW_ODD}; /* Fixes the white rows */
+                color: {TEXT_MAIN};
+                gridline-color: {BORDER};
+                border: 1px solid {BORDER};
+                selection-background-color: {ACCENT_GOLD};
+            }}
+            QTableWidget::item {{
+                background-color: {BG_ROW_EVEN};
+                color: {TEXT_MAIN};
+                border: none;
+            }}
+            QHeaderView::section {{
+                background-color: {BG_PANEL};
+                color: {ACCENT_GOLD};
+                font-weight: bold;
+                border: 1px solid {BORDER};
+            }}
+        """
 
 # ── Image Threading (Improved Quality) ─────────────────────────────────────
 class ImageAssigner(QThread):
@@ -125,7 +148,6 @@ class DpsTable(QTableWidget):
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents) # Rank
         header.setSectionResizeMode(1, QHeaderView.Stretch)          # Name
         
-        self.setAlternatingRowColors(True)
         self.setShowGrid(False)
         self.setEditTriggers(QTableWidget.NoEditTriggers)
         self.setStyleSheet(f"""
@@ -299,7 +321,7 @@ class DamagePieChart(QChartView):
         data = character.get_breakdown()
         
         # Don't show chart if no damage dealt yet
-        if character.total_dmg == 0:
+        if character.total_dmg_dealt == 0:
             self.chart.setTitle(f"No Data for {character.name}")
             return
 
@@ -323,8 +345,111 @@ class QRaidMembers(QWidget):
     def __init__(self):
         super().__init__()
 
-    def update_summons(self):
+    def update_raid_members(self):
         pass
+
+class QDmgPerTurn(QTableWidget):
+
+    class Bar(QStyledItemDelegate):
+        def __init__(self, parent = None):
+            super().__init__(parent)
+            self.max_val = 1
+
+        def paint(self, painter, opt, idx):
+            # 1. Extract data safely
+            try:
+                v = float(idx.data(Qt.DisplayRole) or 0)
+            except:
+                v = 0.0
+                
+            painter.save()
+            painter.setRenderHint(QPainter.Antialiasing)
+            
+            # 2. Geometry: [Name (110) | Bar (Flexible) | Value (80)]
+            r = opt.rect.adjusted(2, 2, -2, -2)
+            n_r = QRect(r.left(), r.top(), 110, r.height())
+            v_r = QRect(r.right() - 80, r.top(), 80, r.height())
+            
+            # Calculate bar width safely (prevents negative width disappearance)
+            bar_w = max(0, r.width() - 205)
+            b_r = QRect(n_r.right() + 5, r.top() + 8, bar_w, r.height() - 16)
+
+            # 3. Draw Name (from UserRole) and Percentage (Calculated)
+            painter.setPen(QColor("#ffffff"))
+            painter.drawText(n_r, Qt.AlignLeft | Qt.AlignVCenter, str(idx.data(Qt.UserRole) or ""))
+            
+            painter.setPen(QColor("#c9a84c"))
+            painter.drawText(v_r, Qt.AlignRight | Qt.AlignVCenter, f"{v*100:.1f}%")
+
+            # 4. Draw Bar
+            if bar_w > 0:
+                painter.fillRect(b_r, QColor(255, 255, 255, 30)) # Track
+                painter.fillRect(b_r.left(), b_r.top(), int(bar_w * min(v, 1.0)), b_r.height(), QColor("#4a90d9"))
+            
+            painter.restore()
+
+    def __init__(self):
+        super().__init__()
+        self.cols = 3
+        self.setColumnCount(self.cols)
+        self.setHorizontalHeaderLabels([ "Avg per turn", "Current turn", "Previous turn"])
+        self.setMinimumWidth(400)
+        header = self.horizontalHeader()
+        self.setStyleSheet(WIDGET_STYLE)
+        self.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.bar = self.Bar()
+        self.setItemDelegateForColumn(0, self.bar)
+        self.setMaximumWidth(600)
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.Interactive)
+        self.setColumnWidth(0, 300)
+        self.setColumnWidth(1, 200)
+        header.setMaximumSectionSize(150)
+        header.setMinimumSectionSize(100)
+        self.setColumnWidth(2, 150)
+
+
+
+    def update_turn_table(self, quest: Quest):
+        members = quest.get_party().get_members_list()
+        self.setRowCount(len(members))
+        turn = quest.get_turn()
+        max_dmg = 1
+        member_stats = []
+        total_turn_dmg = 1
+
+        for member in members:
+            dmg_list = member.get_dmg_list(turn)
+            curr_dmg = sum(member.get_dmg_list(turn))
+            prev_dmg = sum(member.get_dmg_list(turn - 1))
+            total_turn_dmg += curr_dmg
+
+            if curr_dmg > max_dmg:
+                max_dmg = curr_dmg
+
+            member_stats.append({
+                'name': member.get_name(),
+                'curr': curr_dmg,
+                'prev': prev_dmg
+            })
+
+        self.bar.max_val = max_dmg
+
+        for i, stats in enumerate(member_stats):
+            curr_dmg = stats['curr']
+            prev_dmg = stats['prev']
+            ratio_this_turn = curr_dmg / total_turn_dmg
+            item_main = QTableWidgetItem(str(ratio_this_turn))
+            item_main.setData(Qt.UserRole, stats['name'])
+            self.setItem(i, 0, item_main)
+            self.setItem(i, 1, QTableWidgetItem(f"{curr_dmg:,}"))
+            self.setItem(i, 2, QTableWidgetItem(f"{prev_dmg:,}"))
+
+        self.viewport().update()
+
+
+# 1 mil dmg = 10k honor
 
 class GBFDpsMeter(QMainWindow):
     def __init__(self, unused_path=None): # unused_path keeps signature for main.py
@@ -340,8 +465,9 @@ class GBFDpsMeter(QMainWindow):
         header = self.build_header()
 
         self.add_raid(header)
-        header.addStretch()
         self.add_dmg_pie(header)
+        header.setStretch(1, 2)
+        self.add_dmg_per_turn(header)
 
 
         middle = self.build_middle()
@@ -392,6 +518,10 @@ class GBFDpsMeter(QMainWindow):
         self.damage_pie = DamagePieChart()
         container.addWidget(self.damage_pie)
 
+    def add_dmg_per_turn(self, container):
+        self.damage_turn = QDmgPerTurn()
+        container.addWidget(self.damage_turn)
+
     def add_summons(self, container):
         self.summons = QSummons()
         container.addWidget(self.summons)
@@ -418,9 +548,13 @@ class GBFDpsMeter(QMainWindow):
             # Standard updates
             self.raid_info.update_raid_info(quest.get_raid())
 
+            # summon update
             self.summons.update_summons(quest.get_party().get_summon_list())
             if sorted_members:
                 self.damage_pie.update_chart(sorted_members[0])
+
+            # turn table update
+            self.damage_turn.update_turn_table(quest)
                 
         except Exception as e:
             print(f"UI Update Error: {e}")

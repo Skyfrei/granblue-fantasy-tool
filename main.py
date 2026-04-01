@@ -13,12 +13,11 @@ from gbf_gui import GBFDpsMeter as gbf_gui
 
 INTERFACE = "enp1s0"
 KEYLOG_FILE = "/home/sky/code/granblue/gbf_keys.log"
-DUMP_FILE = "./all_gbf_dump3.json"
+DUMP_FILE = "./all_gbf_dump4.json"
 
 
 def find_interface():
     pass
-
 
 def get_parser(json_data: Dict[str, any]) -> None:
     p = Parser(json_data)
@@ -27,8 +26,17 @@ def get_parser(json_data: Dict[str, any]) -> None:
 def get_quest(par: Parser):
     return par.parse()
 
+def has_quest_changed(par: Parser, q: Quest) -> bool:
+    new_raid_id = par.data.get("raid_id", "")
+    if new_raid_id != "" and new_raid_id != q.get_quest_id():
+        return True
+    return False
+
 def update(par: Parser, quest: Quest):
+    if has_quest_changed(par, quest):
+        return True
     par.parse_damage(quest)
+    return False
 
 class CaptureThread(QThread):
     update_signal = Signal(object)
@@ -46,7 +54,7 @@ class CaptureThread(QThread):
             f.write("") 
 
         cmd = [
-            "sudo", "tshark",
+            "tshark",
             "-i", INTERFACE,
             "-o", f"tls.keylog_file:{KEYLOG_FILE}",
             "-f", "host steam.granbluefantasy.com",
@@ -70,15 +78,20 @@ class CaptureThread(QThread):
                     try:
                         json_data = json.loads(decode)
                         self.parser.set_data(json_data)
-                        
+                        #json.dump(json_data, f, indent=2)
+                        #f.write("\n\n")
+                        #f.flush()
                         if self.active_quest is None:
                             temp_quest = get_quest(self.parser)
                             if temp_quest and temp_quest.get_party().get_members_list():
                                 self.active_quest = temp_quest
 
                         if self.active_quest:
-                            update(self.parser, self.active_quest)
-                            self.update_signal.emit(self.active_quest)
+                            needs_reload = update(self.parser, self.active_quest)
+                            if needs_reload:
+                                self.active_quest = None
+                            else:
+                                self.update_signal.emit(self.active_quest)
                     
                     except json.JSONDecodeError:
                         continue
