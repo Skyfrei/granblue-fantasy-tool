@@ -6,7 +6,7 @@ import signal
 from PySide6.QtCore import QThread, Signal, Slot, QTimer
 from PySide6.QtWidgets import QApplication
 from typing import Any, Dict
-from gbf_party import Party
+from gbf_party import Party, Quest
 from gbf_parser import Parser
 from gbf_gui import GBFDpsMeter as gbf_gui
 
@@ -24,11 +24,11 @@ def get_parser(json_data: Dict[str, any]) -> None:
     p = Parser(json_data)
     return p
 
-def get_party(par: Parser):
+def get_quest(par: Parser):
     return par.parse()
 
-def get_dmg(par: Parser, party: Party):
-    par.parse_damage(party)
+def update(par: Parser, quest: Quest):
+    par.parse_damage(quest)
 
 class CaptureThread(QThread):
     update_signal = Signal(object)
@@ -37,7 +37,7 @@ class CaptureThread(QThread):
         super().__init__()
         # Use your existing helper functions
         self.parser = get_parser({})
-        self.active_party = None
+        self.active_quest = None
         self.process = None
         self.keep_running = True
 
@@ -71,21 +71,20 @@ class CaptureThread(QThread):
                         json_data = json.loads(decode)
                         self.parser.set_data(json_data)
                         
-                        if self.active_party is None:
-                            temp_party = get_party(self.parser)
-                            if temp_party and temp_party.get_members_list():
-                                self.active_party = temp_party
+                        if self.active_quest is None:
+                            temp_quest = get_quest(self.parser)
+                            if temp_quest and temp_quest.get_party().get_members_list():
+                                self.active_quest = temp_quest
 
-                        if self.active_party:
-                            get_dmg(self.parser, self.active_party)
-                            self.update_signal.emit(self.active_party)
+                        if self.active_quest:
+                            update(self.parser, self.active_quest)
+                            self.update_signal.emit(self.active_quest)
                     
                     except json.JSONDecodeError:
-                        # This catches the "Expecting property name" error
-                        # and just moves to the next packet.
                         continue
                         
             except Exception as e:
+                print(e)
                 continue
 
     def stop(self):
