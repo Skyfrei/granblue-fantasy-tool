@@ -45,10 +45,11 @@ class CaptureThread(QThread):
         super().__init__()
         # Use your existing helper functions
         self.parser = get_parser({})
+        self.quest_list = list()
         self.active_quest = None
         self.process = None
         self.keep_running = True
-
+    
     def run(self):
         with open(KEYLOG_FILE, 'w') as f:
             f.write("") 

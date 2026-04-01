@@ -151,6 +151,39 @@ class Party:
         except IndexError:
             raise IndexError(f"Summon index {key} is out of range (0-{len(self.summon)-1})")
 
+    def export_to_json(self, indent=4) -> str:
+        party_data = {
+            "members": [
+                {
+                    "position": c.pos,
+                    "name": c.name,
+                    "hp": c.hp,
+                    "max_hp": c.max_hp,
+                    "img_id": c.img_id,
+                    "damage_stats": {
+                        "total": c.total_dmg_dealt,
+                        "autos": c.auto_dmg,
+                        "ougi": c.ougi_dmg,
+                        "skills": c.skill_dmg,
+                        "breakdown_per_turn": c.dmg_done_dict
+                    },
+                    "heal_stats": {
+                        "total": c.total_heal_done,
+                        "breakdown_per_turn": c.heal_done_dict
+                    }
+                } for c in self.members
+            ],
+            "summons": [
+                {
+                    "position": s.pos,
+                    "name": s.name,
+                    "cooldown": s.cooldown,
+                    "img_id": s.img_id
+                } for s in self.summons
+            ]
+        }
+        return json.dumps(party_data, indent=indent)
+
     def __setitem__(self, key, value):
         self.members[key] = value
 

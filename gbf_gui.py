@@ -26,6 +26,17 @@ ACCENT_GOLD  = "#c9a84c"
 TEXT_MAIN    = "#e8ecf4"
 BORDER       = "#252a38"
 BAR_FILL     = "#4a90d9"
+BUTTON_STYLE = f"""
+            QPushButton {{
+                background-color: {ACCENT_GOLD};
+                color: #0d0f14;
+                border: none;
+                font-weight: bold;
+                padding: 8px;
+                border-radius: 2px;
+            }}
+            QPushButton:hover {{ background-color: #ffffff; }}
+        """
 WIDGET_STYLE = f"""
             QTableWidget {{
                 background-color: {BG_DARK};
@@ -275,33 +286,37 @@ class QRaidInfo(QWidget):
         self.lbl_hp.setStyleSheet(f"color: {ACCENT_GOLD}; font-family: monospace; font-size: 13px;")
 
         # 4. Action Button
-        self.btn_action = QPushButton("RAID DETAILS")
+        self.btn_action = QPushButton("Raid Details")
         self.btn_action.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_action.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {ACCENT_GOLD};
-                color: #0d0f14;
-                border: none;
-                font-weight: bold;
-                padding: 8px;
-                border-radius: 2px;
-            }}
-            QPushButton:hover {{ background-color: #ffffff; }}
-        """)
+        self.btn_action.setStyleSheet(BUTTON_STYLE)
+
+        self.log_btn = QPushButton("Combat log")
+        self.log_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.log_btn.setStyleSheet(BUTTON_STYLE)
 
         # Add everything to the widget's internal vertical layout
         self.layout.addWidget(self.lbl_image)
         self.layout.addWidget(self.lbl_name)
         self.layout.addWidget(self.lbl_hp)
         self.layout.addWidget(self.btn_action)
+        self.layout.addWidget(self.log_btn)
+
         
         # Add a stretch at the bottom to keep everything at the top
         self.layout.addStretch()
 
-    def update_raid_info(self, raid : RaidInfo):
+    def update_raid_info(self, raid : RaidInfo, dmg_done: int):
         self.lbl_name.setText(raid.get_name())
         formatted_hp = f"{raid.get_hp():,}".replace(",", ".")
-        self.lbl_hp.setText(f"HP: {formatted_hp} ({raid.get_hp() / raid.get_max_hp():.0%})")
+        honor_val = dmg_done // 100
+        formatted_honor = f"{honor_val:,}".replace(",", ".")
+        max_hp = raid.get_max_hp()
+        percent = (raid.get_hp() / max_hp) if max_hp > 0 else 0
+
+        self.lbl_hp.setText(
+            f"HP: {formatted_hp} ({percent:.0%})\n"
+            f"Honour: {formatted_honor}"
+        )
 
 class DamagePieChart(QChartView):
     def __init__(self):
@@ -457,6 +472,7 @@ class GBFDpsMeter(QMainWindow):
         self.setWindowTitle("Granblue Fantasy tool")
         self.resize(1000, 800)
         self.setStyleSheet(f"background-color: {BG_DARK};")
+        self.active_quest = None
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -481,9 +497,27 @@ class GBFDpsMeter(QMainWindow):
         bottom.addWidget(self.party_portraits)
         
         self.add_raid_members(self.main_lay)
-
+        
+        self.btn_save_log = QPushButton("EXPORT RAID LOG (.JSON)")
+        self.btn_save_log.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_save_log.setFixedHeight(40)
+        self.btn_save_log.clicked.connect(self.save_party_to_file)
+        self.main_lay.addWidget(self.btn_save_log)
         self.main_lay.addStretch()
 
+    @Slot()
+    def save_party_to_file(self):
+        try:
+            filename = f"raid_log_{self.active_quest.get_quest_id()}.json"
+            json_data = self.current_quest.get_party().export_to_json()
+            
+            with open(filename, "w") as f:
+                f.write(json_data)
+            
+            print(f"Successfully saved raid log to {filename}")
+            self.btn_save_log.setText("LOG SAVED!")
+        except Exception as e:
+            print(f"Error saving log: {e}")
 
     # methods
     def build_header(self):
@@ -534,6 +568,7 @@ class GBFDpsMeter(QMainWindow):
     @Slot(object)
     def update_ui_live(self, quest: Quest):
         try:
+            self.active_quest = quest
             members = quest.get_party().get_members_list()
             if not members: return
             
@@ -546,7 +581,8 @@ class GBFDpsMeter(QMainWindow):
             self.dps_table.update_table(sorted_members, total_raid_dmg)
             
             # Standard updates
-            self.raid_info.update_raid_info(quest.get_raid())
+            total_party_dmg = sum(member.get_total_dmg() for member in quest.get_party().get_members_list())
+            self.raid_info.update_raid_info(quest.get_raid(), total_party_dmg)
 
             # summon update
             self.summons.update_summons(quest.get_party().get_summon_list())
