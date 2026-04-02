@@ -89,8 +89,7 @@ class CaptureThread(QThread):
 
     def __init__(self):
         super().__init__()
-        #self.init_env()
-        # Use your existing helper functions
+        self.init_env()
         self.interface = find_interface()
         self.parser = get_parser({})
         self.quest_list = list()
