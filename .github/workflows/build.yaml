@@ -1,18 +1,10 @@
 name: Build GBF Tool
+
 on: [push]
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            artifact_name: GBF-Tool-Win.exe
-            sep: ";"
-          - os: ubuntu-latest
-            artifact_name: GBF-Tool-Linux
-            sep: ":"
-    runs-on: ${{ matrix.os }}
+  build-windows:
+    runs-on: windows-latest
 
     steps:
       - name: Checkout Code
@@ -28,14 +20,16 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build with PyInstaller
+        # We keep 'shell: bash' so we can use the "\" for clean multi-line code
+        shell: bash
         run: |
           pyinstaller --noconsole --onefile \
-          --add-data "db${{ matrix.sep }}db" \
-          --add-data "style.qss${{ matrix.sep }}. " \
-          --name "${{ matrix.artifact_name }}" main.py
+          --add-data "db;db" \
+          --add-data "style.qss;." \
+          --name "GBF-Tool-Win.exe" main.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: dist/${{ matrix.artifact_name }}*
+          name: GBF-Tool-Windows
+          path: dist/GBF-Tool-Win.exe
