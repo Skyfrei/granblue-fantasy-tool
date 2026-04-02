@@ -7,6 +7,13 @@ with the browser.
 
 # Install
 
+The below packages are necessary and not bundled with the app.
+The program reads the packets that arrive from the granblue fantasy
+domain and just parse them, for this purpose a tool for 
+sniffing internet packets and parsing them is necessary.
+
+Run this program before running chrome.
+
 ## Windows
 
 ```
