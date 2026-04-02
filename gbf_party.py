@@ -126,14 +126,10 @@ class Summon:
         return self.img
 
 class Item:
-    def __init__(self, position, name, cd, img, id):
+    def __init__(self, position, img, id):
         self.pos = position
-        self.name = name
         self.img = img
         self.img_id = id
-
-    def get_name(self):
-        return self.name
 
     def get_pos(self):
         return self.pos
@@ -143,16 +139,19 @@ class Item:
 
 
 class Party:
-    def __init__(self, chars: list[Character], summons: list[Summon]):
+    def __init__(self, chars: list[Character], summons: list[Summon], items: list[Item]):
         self.members = chars
         self.summons = summons
-        #self.items = items
+        self.items = items
 
     def __getitem__(self, key) -> Character:
         try:
             return self.members[key]
         except IndexError:
             raise IndexError(f"Member index {key} is out of range (0-{len(self.members)-1})")
+
+    def get_items(self) -> list[Item]:
+        return self.items
     
     def get_summon(self, key) -> Summon:
         try:

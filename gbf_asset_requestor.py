@@ -10,7 +10,8 @@ CDN_PATH_MAP = {
     "char": "npc/s",
     "summon": "summon/b",
     "raid": "quest/l",
-    "leader": "leader/pm" # MC Classes/Skins
+    "leader": "leader/pm", # MC Classes/Skins
+    "weapon": "weapon/ls"
 }
 
 def get_wiki_image_by_id(asset_id, asset_type="char"):
@@ -45,7 +46,7 @@ def get_official_cdn_url(asset_id, asset_type):
     else:
         path = CDN_PATH_MAP.get(asset_type, "npc/s")
 
-    ext = "jpg" if asset_type == "raid" else "png"
+    ext = "jpg" if asset_type in ("raid", "weapon") else "png"
     # Format: BASE/FOLDER/ID.EXT
     return f"{CDN_BASE}/{path}/{asset_id}.{ext}"
 
@@ -72,9 +73,9 @@ def download_asset(asset_id, asset_type="char"):
         r.raise_for_status()
         
         # Local DB Naming: keep "char_" for MC so your UI finds it
-        type_prefix = {"char": "char_", "summon": "summon_", "raid": "raid_"}
+        type_prefix = {"char": "char_", "summon": "summon_", "raid": "raid_", "weapon": "weapon_"}
         prefix = type_prefix.get(asset_type, "char_")
-        ext = "jpg" if asset_type == "raid" else "png"
+        ext = "jpg" if asset_type in ("raid", "weapon") else "png"
         
         save_path = f"./db/{prefix}{asset_id}.{ext}"
         os.makedirs("./db", exist_ok=True)

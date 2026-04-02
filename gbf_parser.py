@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from gbf_asset_requestor import download_asset
 from typing import Any, Dict
-from gbf_party import Party, Character, Summon, RaidInfo, Quest
+from gbf_party import Party, Character, Summon, RaidInfo, Quest, Item
 import os
 from pathlib import Path
 
@@ -17,6 +17,7 @@ class Parser:
         self.ability_queue = list()
         self.combat_log = list()
         self.active_turn = 0
+        self.items = None
 
     def parse(self) -> Quest:
         try:
@@ -24,15 +25,47 @@ class Parser:
             raidinfo = self._parse_raid()
             members = self._parse_members()
             summons = self._parse_summons()
-            p = Party(members, summons)
+            items = self._parse_items()
+            if items:
+                self.items = items
+            p = Party(members, summons, self.items)
             quest_id = self.data.get("raid_id", "")
             quest = Quest(raidinfo, p, quest_id, turn)
         except Exception as e:
-            print(e)
+            print(f"Error in parse {e}")
         return quest
 
     def set_data(self, json_data: Dict[str, Any]):
         self.data = json_data
+
+    def _parse_items(self):
+        deck_list = self.data.get("deck_list", {})
+        items = []
+        try:
+            for key, val in deck_list.items():
+                weapons = val.get("weapon", {})
+                for k, v in weapons.items():
+                    pos = int(k)
+                    weapon_id = v.get("weapon_id", "")
+                    image_id = v.get("image_id", "")
+                    if not image_id or str(image_id).lower() == "none":
+                        continue
+                    expected_filename = f"weapon_{image_id}.png"
+                    img_path = f"./db/{expected_filename}"
+
+                    if not os.path.exists(img_path):
+                        img_path = download_asset(image_id, "weapon")
+                   
+                    item = Item(
+                        position = pos,
+                        img = image_id,
+                        id = weapon_id
+                    )
+                    items.append(item)
+                break
+        except Exception as e:
+            print(e)
+        return items
 
     def _parse_turn(self) -> int:
         return self.data.get("turn", 0)

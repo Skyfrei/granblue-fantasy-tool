@@ -38,6 +38,7 @@ class ImageAssigner(QThread):
             f"./db/char_{self.char_id}.png",
             f"./db/summon_{self.char_id}.png",
             f"./db/raid_{self.char_id}.jpg",
+            f"./db/weapon_{self.char_id}.jpg",
             self.char_id 
         ]
         
@@ -242,6 +243,34 @@ class DamagePieChart(QChartView):
 
         self.chart.addSeries(self.series)
 
+class QItems(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(5, 5, 5, 5)
+        self.grid.setSpacing(5)
+        self.setFixedWidth(360) # Fits 5 tall weapons across
+
+        # 10 slots for the weapon grid
+        self.slots = [CharacterIcon() for _ in range(10)]
+        for i, slot in enumerate(self.slots):
+            # OVERRIDE: Set the tall card size only for these instances
+            slot.setFixedSize(65, 130) 
+            self.grid.addWidget(slot, i // 5, i % 5)
+
+    def update_items(self, item_list):
+        """ Expects a list of Item objects from your parser """
+        if not item_list:
+            print("EMPTY ITEMS")
+            return
+        
+        # Clear old icons if needed (optional)
+        for item in item_list:
+            # We subtract 1 if your positions are 1-indexed (1-10)
+            idx = item.get_pos() - 1 
+            if 0 <= idx < len(self.slots):
+                self.slots[idx].load_id(item.get_img())
+
 class QRaidMembers(QWidget):
     def __init__(self):
         super().__init__()
@@ -276,14 +305,14 @@ class GBFDpsMeter(QMainWindow):
         self.add_dps_table(middle)
 
         bottom = self.build_bottom()
-        
-        self.add_summons(bottom)
-        bottom.addStretch()
         self.party_portraits = QPartyIcons()
         bottom.addWidget(self.party_portraits)
-        
+        bottom.addStretch()
+        self.add_summons(bottom)
+        self.add_items(self.main_lay)
         self.add_raid_members(self.main_lay)
-        
+
+         
         #self.btn_save_log = QPushButton("EXPORT RAID LOG (.JSON)")
         #self.btn_save_log.setCursor(Qt.CursorShape.PointingHandCursor)
         #self.btn_save_log.setFixedHeight(40)
@@ -337,6 +366,10 @@ class GBFDpsMeter(QMainWindow):
         self.raid_members = QRaidMembers()
         container.addWidget(self.raid_members)
 
+    def add_items(self, container):
+        self.item_grid = QItems()
+        container.addWidget(self.item_grid)
+
     @Slot()
     def save_party_to_file(self):
         try:
@@ -378,6 +411,9 @@ class GBFDpsMeter(QMainWindow):
 
             # turn table update
             self.damage_turn.update_turn_table(quest)
+            for i in quest.get_party().get_items():
+                print(i.get_img())
+            self.item_grid.update_items(quest.get_party().get_items())
                 
         except Exception as e:
             print(f"UI Update Error: {e}")
