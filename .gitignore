@@ -1,4 +1,6 @@
-db/
+db/*
+!db/.gitkeep
+
 logs/
 __pycache__
 gbf_keys.log
