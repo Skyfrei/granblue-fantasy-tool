@@ -1,5 +1,8 @@
 import requests
 import os
+from lxml import html
+import re
+
 
 CDN_BASE = "https://prd-game-a-granbluefantasy.akamaized.net/assets_en/img/sp/assets"
 
@@ -85,3 +88,90 @@ def download_asset(asset_id, asset_type="char"):
     except Exception as e:
         print(f"Critical error downloading {asset_id}: {e}")
         return None
+
+def clean_scraped_data(raw_attacks):
+    cleaned_mechanics = []
+    
+    # Keywords that usually indicate a real boss mechanic
+    mechanic_keywords = ["TR ", "Trigger", "HP ", "OD ", "Normal", "Special Attack"]
+    
+    # Keywords to EXCLUDE (Noise)
+    noise_keywords = ["Estimated damage", "Relative to damage", "ATK Down", "Voice Actor", "magnificent", "bend the knee"]
+    
+    for entry in raw_attacks:
+        # 1. Skip rows that are clearly part of the "Damage/Resistances" tables
+        if any(noise in entry for noise in noise_keywords):
+            continue
+            
+        # 2. Skip rows that are too short or just Japanese voice lines (usually contain | )
+        if "|" in entry and len(entry) < 50 and not any(k in entry for k in ["Phase", "TR", "%"]):
+            continue
+    
+        # 3. Keep rows that mention Triggers or Special Attacks
+        if any(k in entry for k in mechanic_keywords):
+            # Clean up extra newlines and spaces
+            clean_entry = re.sub(r'\n+', '\n', entry).strip()
+            cleaned_mechanics.append(clean_entry)
+    
+    return cleaned_mechanics
+
+def scrape_raid_info(boss_name):
+    # 1. Clean the name: Remove "Lvl 120 " or similar prefixes
+    clean_name = re.sub(r'^Lvl\s+\d+\s+', '', boss_name).strip()
+    # Replace spaces with underscores for the URL
+    url_name = clean_name.replace(' ', '_')
+    url = f"https://gbf.wiki/{url_name}_(Raid)"
+    
+    # 2. Headers are mandatory! 
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124 Safari/537.36'
+    }
+
+    try:
+        # FIX: Added headers=headers here
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            print(f"Error: Received status {response.status_code} for URL: {url}")
+            return {"attacks": [], "notes": ["Could not reach wiki page."]}
+
+        tree = html.fromstring(response.content)
+        
+        # 3. Scrape Tables
+        attacks = []
+        # We target tables that look like raid mechanics
+        tables = tree.xpath('//table[contains(@class, "wikitable")]')
+        
+        for table in tables:
+            # Check if this specific table contains "Trigger" or "Special Attack" text
+            table_text = "".join(table.xpath('.//th//text()')).lower()
+            if any(word in table_text for word in ["trigger", "special", "attack", "effect"]):
+                
+                rows = table.xpath('.//tr[td]') # Only get rows that have data cells
+                for row in rows:
+                    # Get text from every cell in the row, including links and spans
+                    cells = row.xpath('./td')
+                    row_data = []
+                    for cell in cells:
+                        # This join/strip magic cleans up all nested tags inside the cell
+                        text = " ".join(cell.xpath('.//text()')).strip()
+                        if text:
+                            row_data.append(text)
+                    
+                    if row_data:
+                        attacks.append(" | ".join(row_data))
+
+        # 4. Scrape Notes
+        # Notes can be tricky; grabbing all text inside the <li> following the Notes span
+        notes_list = tree.xpath('//span[@id="Notes"]/following::ul[1]/li')
+        notes = [" ".join(li.xpath('.//text()')).strip() for li in notes_list]
+        result = {
+            "attacks": list(dict.fromkeys(attacks)), # Remove duplicates
+            "notes": notes
+        }
+
+        return clean_scraped_data(result['attacks']) 
+
+    except Exception as e:
+        print(f"Scraper crashed: {e}")
+        return {"attacks": [], "notes": [f"Error: {str(e)}"]}

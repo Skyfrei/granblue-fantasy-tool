@@ -1,5 +1,6 @@
 import json
 import time
+from gbf_asset_requestor import scrape_raid_info
 
 class RaidInfo:
     def __init__(self, name, at, maxhp, img, id):
@@ -9,6 +10,8 @@ class RaidInfo:
         self.img = img
         self.img_id = id
         self.attribute = at
+        if self.name != "":
+            self.boss_info = scrape_raid_info(self.name)
 
     def get_name(self):
         return self.name
@@ -27,6 +30,9 @@ class RaidInfo:
 
     def get_attribute(self):
         return self.attribute
+
+    def get_effect_table(self):
+        return self.boss_info
 
 class Character:
     def __init__(self, position, name, maxhp, img, id):

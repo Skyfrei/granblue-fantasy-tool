@@ -17,6 +17,7 @@ from PySide6.QtCharts import QChart, QChartView, QPieSeries
 # Import your classes
 from gbf_party import Party, Character, Quest, RaidInfo
 from gbf_turntable import QDmgPerTurn
+from gbf_raidinfo import QRaidInfo
 
 
 # ── Image Threading (Improved Quality) ─────────────────────────────────────
@@ -111,7 +112,7 @@ class DpsTable(QTableWidget):
         super().__init__()
         self.setColumnCount(6)
         self.setHorizontalHeaderLabels([
-            "RANK", "NAME", "AUTO", "OUGI", "SKILL", "TOTAL"
+            "Rank", "Name", "Auto", "Ougi", "Skill", "Total"
         ])
         
         # Set a tighter row height since there are no icons
@@ -121,7 +122,7 @@ class DpsTable(QTableWidget):
         header = self.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents) # Rank
-        header.setSectionResizeMode(1, QHeaderView.Stretch)          # Name
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)          # Name
         
         self.setShowGrid(False)
         self.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -154,7 +155,7 @@ class QPartyIcons(QWidget):
         
         self.grid = QGridLayout(self)
         self.grid.setContentsMargins(5, 5, 5, 5)
-        self.grid.setSpacing(5)
+        self.grid.setSpacing(20)
         
         self.slots = [CharacterIcon() for _ in range(6)]
         for i, slot in enumerate(self.slots):
@@ -170,11 +171,8 @@ class QPartyIcons(QWidget):
 class QSummons(QWidget):
     def __init__(self):
         super().__init__()
-        # 180px height works well for two rows of icons
-        self.setFixedHeight(180) 
         self.grid = QGridLayout(self)
-        self.grid.setContentsMargins(5, 5, 5, 5)
-        self.grid.setSpacing(5)
+        self.grid.setSpacing(20)
         self.setFixedHeight(260) 
         self.setFixedWidth(600)
 
@@ -202,65 +200,6 @@ class QSummons(QWidget):
             if 0 <= summon.get_pos() < len(self.slots):
                 self.slots[summon.get_pos()].load_id(summon.img)
 
-class QRaidInfo(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setFixedWidth(220) 
-        
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(10, 10, 10, 10)
-        self.layout.setSpacing(15)
-
-        # 1. Raid Banner Image
-        self.lbl_image = QLabel()
-        self.lbl_image.setFixedSize(200, 70)
-        self.lbl_image.setStyleSheet(load_stylesheet("style.qss"))
-        self.lbl_image.setScaledContents(True)
-        # Placeholder text if no image is loaded
-        self.lbl_image.setText("RAID BANNER")
-        self.lbl_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # 2. Level and Name
-        self.lbl_name = QLabel("Lvl 200 Akasha")
-        self.lbl_name.setStyleSheet(load_stylesheet("style.qss"))
-        self.lbl_name.setWordWrap(True)
-
-        # 3. HP Display
-        self.lbl_hp = QLabel("HP: 100.0%")
-        self.lbl_hp.setStyleSheet(load_stylesheet("style.qss"))
-
-        # 4. Action Button
-        self.btn_action = QPushButton("Raid Details")
-        self.btn_action.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_action.setStyleSheet(load_stylesheet("style.qss"))
-
-        self.log_btn = QPushButton("Combat log")
-        self.log_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.log_btn.setStyleSheet(load_stylesheet("style.qss"))
-
-        # Add everything to the widget's internal vertical layout
-        self.layout.addWidget(self.lbl_image)
-        self.layout.addWidget(self.lbl_name)
-        self.layout.addWidget(self.lbl_hp)
-        self.layout.addWidget(self.btn_action)
-        self.layout.addWidget(self.log_btn)
-
-        
-        # Add a stretch at the bottom to keep everything at the top
-        self.layout.addStretch()
-
-    def update_raid_info(self, raid : RaidInfo, dmg_done: int):
-        self.lbl_name.setText(raid.get_name())
-        formatted_hp = f"{raid.get_hp():,}".replace(",", ".")
-        honor_val = dmg_done // 100
-        formatted_honor = f"{honor_val:,}".replace(",", ".")
-        max_hp = raid.get_max_hp()
-        percent = (raid.get_hp() / max_hp) if max_hp > 0 else 0
-
-        self.lbl_hp.setText(
-            f"HP: {formatted_hp} ({percent:.0%})\n"
-            f"Honour: {formatted_honor}"
-        )
 
 class DamagePieChart(QChartView):
     def __init__(self):

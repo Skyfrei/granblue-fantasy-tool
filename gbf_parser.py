@@ -118,7 +118,7 @@ class Parser:
     def _parse_raid(self) -> RaidInfo:
         try:
             boss_data = self.data.get('boss', {}).get('param', [{}])[0]
-            raid_name = boss_data.get('name', {}).get('en', "Unknown Raid")
+            raid_name = boss_data.get('name', {}).get('en', "")
             current_hp = int(boss_data.get('hp', 0))
             max_hp = int(boss_data.get('hpmax', 1))
             img_id = boss_data.get("enemy_id")
