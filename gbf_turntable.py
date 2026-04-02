@@ -118,10 +118,12 @@ class QDmgPerTurn(QWidget):
         self.card_dpm  = MetricCard("DPM")
         self.card_dpt  = MetricCard("DPT")
         self.card_tpm  = MetricCard("TPM")
+        self.card_attack_number = MetricCard("TA")
         self.cards_layout.addWidget(self.card_time)
         self.cards_layout.addWidget(self.card_dpm)
         self.cards_layout.addWidget(self.card_dpt)
         self.cards_layout.addWidget(self.card_tpm)
+        self.cards_layout.addWidget(self.card_attack_number)
         self.main_layout.addLayout(self.cards_layout)
  
     
@@ -136,6 +138,7 @@ class QDmgPerTurn(QWidget):
         member_stats = []
         total_turn_dmg = 1
         all_total_dmg = 0
+        attack_number = 0
 
         for member in members:
             dmg_list = member.get_dmg_list(turn)
@@ -143,6 +146,7 @@ class QDmgPerTurn(QWidget):
             prev_dmg = sum(member.get_dmg_list(turn - 1))
             total_turn_dmg += curr_dmg
             all_total_dmg += member.get_total_dmg()
+            attack_number += len(member.get_dmg_list(turn))
 
             if curr_dmg > max_dmg:
                 max_dmg = curr_dmg
@@ -159,7 +163,7 @@ class QDmgPerTurn(QWidget):
         self.update_card(self.card_dpm, f"{all_total_dmg / quest.get_minutes_passed():,.2f}")
         mins, secs = divmod(int(quest.get_elapsed_time()), 60)
         self.update_card(self.card_time, f"{mins:02d}:{secs:02d}")
-
+        self.update_card(self.card_attack_number, f"{attack_number}")
 
         for i, stats in enumerate(member_stats):
             curr_dmg = stats['curr']

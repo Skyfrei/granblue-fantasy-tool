@@ -65,6 +65,8 @@ class Parser:
                     if not isinstance(action, dict):
                         continue
                     action_type = action.get("cmd")
+                    # LOOK IF THERE IS A SWAP TO CHANGE PLAYER IN MAIN PARTY
+                    # USE DARK TEAM TO DEBUG AS DANUA HAS A SWAP
                          
                     if action.get("from") == "player" or action.get("to") == "boss":
                         self._update_raid(raid_info, action)
