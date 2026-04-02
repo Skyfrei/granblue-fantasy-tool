@@ -1,0 +1,88 @@
+/* style.qss */
+
+/* Main Application / Background Defaults */
+QWidget {
+    background-color: #0d0f14;
+    color: #e8ecf4;
+    font-family: 'Segoe UI', 'Roboto', 'Arial';
+}
+
+/* Metric Cards Dashboard */
+MetricCard {
+    background-color: rgba(255, 255, 255, 10);
+    border: 1px solid rgba(255, 255, 255, 20);
+    border-radius: 4px;
+}
+
+
+MetricCard QLabel#TitleLabel {
+    color: #aaaaaa;
+    font-size: 10px;
+    border: none;
+    background: transparent;
+}
+
+MetricCard QLabel#ValueLabel {
+    color: #ff701a;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    font-family: 'Consolas';
+    background: transparent;
+}
+
+/* Divider Line */
+#dividerLine {
+    background-color: rgba(255, 255, 255, 30);
+    max-height: 1px;
+    border: none;
+}
+
+/* Table Styles */
+QTableWidget {
+    background-color: #0d0f14;
+    alternate-background-color: #191c28;
+    color: #e8ecf4;
+    gridline-color: #252a38;
+    border: 1px solid #252a38;
+    selection-background-color: #c9a84c;
+    selection-color: #0d0f14;
+}
+
+QTableWidget::item {
+    background-color: #141720;
+    color: #e8ecf4;
+    border: none;
+}
+
+/* Table Headers */
+QHeaderView::section {
+    background-color: #13161f;
+    color: #c9a84c;
+    font-weight: bold;
+    padding: 4px;
+    border: 1px solid #252a38;
+}
+
+/* Buttons */
+QPushButton {
+    background-color: #c9a84c;
+    color: #0d0f14;
+    border: none;
+    font-weight: bold;
+    padding: 8px;
+    border-radius: 2px;
+}
+
+QPushButton:hover {
+    background-color: #ffffff;
+}
+
+dividerLine {
+    background-color: #252a38; /* Matches your BORDER color */
+    min-height: 1px;           /* Forces it to occupy 1px of vertical space */
+    max-height: 1px;
+    border: none;              /* Removes the default QFrame 'Sunken' border */
+    margin-top: 5px;
+    margin-bottom: 5px;
+}

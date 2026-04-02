@@ -1,3 +1,6 @@
+import json
+import time
+
 class RaidInfo:
     def __init__(self, name, at, maxhp, img, id):
         self.name = name
@@ -182,7 +185,7 @@ class Party:
                 } for s in self.summons
             ]
         }
-        return json.dumps(party_data, indent=indent)
+        return json.dumps(party_data, indent=2)
 
     def __setitem__(self, key, value):
         self.members[key] = value
@@ -205,6 +208,7 @@ class Quest:
         self.party = party
         self.turn = turn
         self.finished = False
+        self.start_time = time.monotonic()
 
     def get_raid(self) -> RaidInfo:
         return self.raid
@@ -225,3 +229,8 @@ class Quest:
         if turn > self.turn:
             self.turn = turn
 
+    def get_elapsed_time(self):
+        return time.monotonic() - self.start_time
+
+    def get_minutes_passed(self):
+        return (int(self.get_elapsed_time() // 60) + 1)

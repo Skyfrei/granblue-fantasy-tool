@@ -1,10 +1,10 @@
 import sys
-import requests
 import os
+from datetime import datetime
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QFrame, QScrollArea, QSizePolicy, QGridLayout, QPushButton,
-    QTableWidget, QHeaderView, QProgressBar, QTableWidgetItem, QStyledItemDelegate,
+    QTableWidget, QHeaderView, QProgressBar, QTableWidgetItem,
     QStyle
 )
 from PySide6.QtCore import Qt, QThread, Signal, Slot, QRect
@@ -16,50 +16,14 @@ from PySide6.QtCharts import QChart, QChartView, QPieSeries
 
 # Import your classes
 from gbf_party import Party, Character, Quest, RaidInfo
+from gbf_turntable import QDmgPerTurn
 
-# ── Color Palette ──────────────────────────────────────────────────────────
-BG_DARK      = "#0d0f14"
-BG_PANEL     = "#13161f"
-BG_ROW_ODD   = "#191c28"
-BG_ROW_EVEN  = "#141720"
-ACCENT_GOLD  = "#c9a84c"
-TEXT_MAIN    = "#e8ecf4"
-BORDER       = "#252a38"
-BAR_FILL     = "#4a90d9"
-BUTTON_STYLE = f"""
-            QPushButton {{
-                background-color: {ACCENT_GOLD};
-                color: #0d0f14;
-                border: none;
-                font-weight: bold;
-                padding: 8px;
-                border-radius: 2px;
-            }}
-            QPushButton:hover {{ background-color: #ffffff; }}
-        """
-WIDGET_STYLE = f"""
-            QTableWidget {{
-                background-color: {BG_DARK};
-                alternate-background-color: {BG_ROW_ODD}; /* Fixes the white rows */
-                color: {TEXT_MAIN};
-                gridline-color: {BORDER};
-                border: 1px solid {BORDER};
-                selection-background-color: {ACCENT_GOLD};
-            }}
-            QTableWidget::item {{
-                background-color: {BG_ROW_EVEN};
-                color: {TEXT_MAIN};
-                border: none;
-            }}
-            QHeaderView::section {{
-                background-color: {BG_PANEL};
-                color: {ACCENT_GOLD};
-                font-weight: bold;
-                border: 1px solid {BORDER};
-            }}
-        """
 
 # ── Image Threading (Improved Quality) ─────────────────────────────────────
+def load_stylesheet(file_path):
+    with open(file_path, "r") as f:
+        return f.read()
+
 class ImageAssigner(QThread):
     finished = Signal(QImage, str)
 
@@ -90,7 +54,7 @@ class CharacterIcon(QLabel):
     def __init__(self):
         super().__init__()
         self.setFixedSize(100, 100) 
-        self.setStyleSheet(f"background: {BG_DARK}; border: 1px solid {BORDER};")
+        self.setStyleSheet(load_stylesheet("style.qss"))
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.current_id = None
         self.original_image = None
@@ -161,27 +125,7 @@ class DpsTable(QTableWidget):
         
         self.setShowGrid(False)
         self.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.setStyleSheet(f"""
-            QTableWidget {{
-                background-color: {BG_DARK};
-                alternate-background-color: {BG_ROW_ODD}; /* Fixes the white rows */
-                color: {TEXT_MAIN};
-                gridline-color: {BORDER};
-                border: 1px solid {BORDER};
-                selection-background-color: {ACCENT_GOLD};
-            }}
-            QTableWidget::item {{
-                background-color: {BG_ROW_EVEN};
-                color: {TEXT_MAIN};
-                border: none;
-            }}
-            QHeaderView::section {{
-                background-color: {BG_PANEL};
-                color: {ACCENT_GOLD};
-                font-weight: bold;
-                border: 1px solid {BORDER};
-            }}
-        """)
+        self.setStyleSheet(load_stylesheet("style.qss"))
 
     def update_table(self, sorted_members, total_raid_dmg):
         self.setRowCount(len(sorted_members))
@@ -192,7 +136,7 @@ class DpsTable(QTableWidget):
             # Rank & Name (Text only)
             self.setItem(i, 0, QTableWidgetItem(str(i+1)))
             name_item = QTableWidgetItem(char.get_name())
-            name_item.setForeground(QBrush(QColor(ACCENT_GOLD)))
+            name_item.setForeground(QBrush(QColor("#c9a84c")))
             self.setItem(i, 1, name_item)
             
             # Damage columns
@@ -270,7 +214,7 @@ class QRaidInfo(QWidget):
         # 1. Raid Banner Image
         self.lbl_image = QLabel()
         self.lbl_image.setFixedSize(200, 70)
-        self.lbl_image.setStyleSheet(f"background: #1a1d26; border: 1px solid {BORDER};")
+        self.lbl_image.setStyleSheet(load_stylesheet("style.qss"))
         self.lbl_image.setScaledContents(True)
         # Placeholder text if no image is loaded
         self.lbl_image.setText("RAID BANNER")
@@ -278,21 +222,21 @@ class QRaidInfo(QWidget):
 
         # 2. Level and Name
         self.lbl_name = QLabel("Lvl 200 Akasha")
-        self.lbl_name.setStyleSheet(f"color: {TEXT_MAIN}; font-weight: bold; font-size: 14px;")
+        self.lbl_name.setStyleSheet(load_stylesheet("style.qss"))
         self.lbl_name.setWordWrap(True)
 
         # 3. HP Display
         self.lbl_hp = QLabel("HP: 100.0%")
-        self.lbl_hp.setStyleSheet(f"color: {ACCENT_GOLD}; font-family: monospace; font-size: 13px;")
+        self.lbl_hp.setStyleSheet(load_stylesheet("style.qss"))
 
         # 4. Action Button
         self.btn_action = QPushButton("Raid Details")
         self.btn_action.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_action.setStyleSheet(BUTTON_STYLE)
+        self.btn_action.setStyleSheet(load_stylesheet("style.qss"))
 
         self.log_btn = QPushButton("Combat log")
         self.log_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.log_btn.setStyleSheet(BUTTON_STYLE)
+        self.log_btn.setStyleSheet(load_stylesheet("style.qss"))
 
         # Add everything to the widget's internal vertical layout
         self.layout.addWidget(self.lbl_image)
@@ -341,6 +285,9 @@ class DamagePieChart(QChartView):
             return
 
         self.chart.setTitle(f"{character.name}'s Damage Breakdown")
+        self.chart.legend().setVisible(True)
+        self.chart.legend().setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.chart.legend().setLabelColor(Qt.white) # This fixes the "dark" legend text
         
         # Add slices
         for label, val in data.items():
@@ -363,116 +310,15 @@ class QRaidMembers(QWidget):
     def update_raid_members(self):
         pass
 
-class QDmgPerTurn(QTableWidget):
-
-    class Bar(QStyledItemDelegate):
-        def __init__(self, parent = None):
-            super().__init__(parent)
-            self.max_val = 1
-
-        def paint(self, painter, opt, idx):
-            # 1. Extract data safely
-            try:
-                v = float(idx.data(Qt.DisplayRole) or 0)
-            except:
-                v = 0.0
-                
-            painter.save()
-            painter.setRenderHint(QPainter.Antialiasing)
-            
-            # 2. Geometry: [Name (110) | Bar (Flexible) | Value (80)]
-            r = opt.rect.adjusted(2, 2, -2, -2)
-            n_r = QRect(r.left(), r.top(), 110, r.height())
-            v_r = QRect(r.right() - 80, r.top(), 80, r.height())
-            
-            # Calculate bar width safely (prevents negative width disappearance)
-            bar_w = max(0, r.width() - 205)
-            b_r = QRect(n_r.right() + 5, r.top() + 8, bar_w, r.height() - 16)
-
-            # 3. Draw Name (from UserRole) and Percentage (Calculated)
-            painter.setPen(QColor("#ffffff"))
-            painter.drawText(n_r, Qt.AlignLeft | Qt.AlignVCenter, str(idx.data(Qt.UserRole) or ""))
-            
-            painter.setPen(QColor("#c9a84c"))
-            painter.drawText(v_r, Qt.AlignRight | Qt.AlignVCenter, f"{v*100:.1f}%")
-
-            # 4. Draw Bar
-            if bar_w > 0:
-                painter.fillRect(b_r, QColor(255, 255, 255, 30)) # Track
-                painter.fillRect(b_r.left(), b_r.top(), int(bar_w * min(v, 1.0)), b_r.height(), QColor("#4a90d9"))
-            
-            painter.restore()
-
-    def __init__(self):
-        super().__init__()
-        self.cols = 3
-        self.setColumnCount(self.cols)
-        self.setHorizontalHeaderLabels([ "Avg per turn", "Current turn", "Previous turn"])
-        self.setMinimumWidth(400)
-        header = self.horizontalHeader()
-        self.setStyleSheet(WIDGET_STYLE)
-        self.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.bar = self.Bar()
-        self.setItemDelegateForColumn(0, self.bar)
-        self.setMaximumWidth(600)
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.Interactive)
-        header.setSectionResizeMode(2, QHeaderView.Interactive)
-        self.setColumnWidth(0, 300)
-        self.setColumnWidth(1, 200)
-        header.setMaximumSectionSize(150)
-        header.setMinimumSectionSize(100)
-        self.setColumnWidth(2, 150)
-
-
-
-    def update_turn_table(self, quest: Quest):
-        members = quest.get_party().get_members_list()
-        self.setRowCount(len(members))
-        turn = quest.get_turn()
-        max_dmg = 1
-        member_stats = []
-        total_turn_dmg = 1
-
-        for member in members:
-            dmg_list = member.get_dmg_list(turn)
-            curr_dmg = sum(member.get_dmg_list(turn))
-            prev_dmg = sum(member.get_dmg_list(turn - 1))
-            total_turn_dmg += curr_dmg
-
-            if curr_dmg > max_dmg:
-                max_dmg = curr_dmg
-
-            member_stats.append({
-                'name': member.get_name(),
-                'curr': curr_dmg,
-                'prev': prev_dmg
-            })
-
-        self.bar.max_val = max_dmg
-
-        for i, stats in enumerate(member_stats):
-            curr_dmg = stats['curr']
-            prev_dmg = stats['prev']
-            ratio_this_turn = curr_dmg / total_turn_dmg
-            item_main = QTableWidgetItem(str(ratio_this_turn))
-            item_main.setData(Qt.UserRole, stats['name'])
-            self.setItem(i, 0, item_main)
-            self.setItem(i, 1, QTableWidgetItem(f"{curr_dmg:,}"))
-            self.setItem(i, 2, QTableWidgetItem(f"{prev_dmg:,}"))
-
-        self.viewport().update()
-
-
-# 1 mil dmg = 10k honor
 
 class GBFDpsMeter(QMainWindow):
     def __init__(self, unused_path=None): # unused_path keeps signature for main.py
         super().__init__()
         self.setWindowTitle("Granblue Fantasy tool")
         self.resize(1000, 800)
-        self.setStyleSheet(f"background-color: {BG_DARK};")
-        self.active_quest = None
+        self.setStyleSheet(load_stylesheet("style.qss"))
+        self.current_quest = None
+        self.raid_log_path = "raid_log/"
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -481,9 +327,10 @@ class GBFDpsMeter(QMainWindow):
         header = self.build_header()
 
         self.add_raid(header)
-        self.add_dmg_pie(header)
-        header.setStretch(1, 2)
         self.add_dmg_per_turn(header)
+        header.setStretch(1, 2)
+
+        self.add_dmg_pie(header)
 
 
         middle = self.build_middle()
@@ -498,26 +345,13 @@ class GBFDpsMeter(QMainWindow):
         
         self.add_raid_members(self.main_lay)
         
-        self.btn_save_log = QPushButton("EXPORT RAID LOG (.JSON)")
-        self.btn_save_log.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_save_log.setFixedHeight(40)
-        self.btn_save_log.clicked.connect(self.save_party_to_file)
-        self.main_lay.addWidget(self.btn_save_log)
+        #self.btn_save_log = QPushButton("EXPORT RAID LOG (.JSON)")
+        #self.btn_save_log.setCursor(Qt.CursorShape.PointingHandCursor)
+        #self.btn_save_log.setFixedHeight(40)
+        #self.btn_save_log.clicked.connect(self.save_party_to_file)
+        #self.main_lay.addWidget(self.btn_save_log)
         self.main_lay.addStretch()
 
-    @Slot()
-    def save_party_to_file(self):
-        try:
-            filename = f"raid_log_{self.active_quest.get_quest_id()}.json"
-            json_data = self.current_quest.get_party().export_to_json()
-            
-            with open(filename, "w") as f:
-                f.write(json_data)
-            
-            print(f"Successfully saved raid log to {filename}")
-            self.btn_save_log.setText("LOG SAVED!")
-        except Exception as e:
-            print(f"Error saving log: {e}")
 
     # methods
     def build_header(self):
@@ -564,11 +398,25 @@ class GBFDpsMeter(QMainWindow):
         self.raid_members = QRaidMembers()
         container.addWidget(self.raid_members)
 
+    @Slot()
+    def save_party_to_file(self):
+        try:
+            time_now = datetime.now().strftime("%H%M%S")
+            filename = f"{self.raid_log_path}{self.current_quest.get_quest_id()}_{time_now}.json"
+            json_data = self.current_quest.get_party().export_to_json()
+            
+            with open(filename, "w") as f:
+                f.write(json_data)
+            
+            print(f"Successfully saved raid log to {filename}")
+            self.btn_save_log.setText("Log saved!")
+        except Exception as e:
+            print(f"Error saving log: {e}")
 
     @Slot(object)
     def update_ui_live(self, quest: Quest):
         try:
-            self.active_quest = quest
+            self.current_quest = quest
             members = quest.get_party().get_members_list()
             if not members: return
             
