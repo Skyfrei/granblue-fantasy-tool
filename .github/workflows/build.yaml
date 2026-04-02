@@ -1,0 +1,41 @@
+name: Build GBF Tool
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: GBF-Tool-Win.exe
+            sep: ";"
+          - os: ubuntu-latest
+            artifact_name: GBF-Tool-Linux
+            sep: ":"
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --noconsole --onefile \
+          --add-data "db${{ matrix.sep }}db" \
+          --add-data "style.qss${{ matrix.sep }}. " \
+          --name "${{ matrix.artifact_name }}" main.py
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.artifact_name }}*

@@ -4,7 +4,28 @@ from gbf_asset_requestor import download_asset
 from typing import Any, Dict
 from gbf_party import Party, Character, Summon, RaidInfo, Quest, Item
 import os
+import sys
 from pathlib import Path
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+def resolve_path(image_id, prefix, asset_type):
+    expected_filename = f"{prefix}_{image_id}.png"
+    bundled_path = resource_path(f"db/{expected_filename}")
+    if os.path.exists(bundled_path):
+        return bundled_path
+    local_db = os.path.abspath("db")
+    os.makedirs(local_db, exist_ok=True)
+    local_path = os.path.join(local_db, expected_filename)
+    
+    if not os.path.exists(local_path):
+        return download_asset(image_id, asset_type)
+    return local_path
 
 @dataclass
 class Ability:
@@ -85,7 +106,6 @@ class Parser:
         raid_info = quest.get_raid()
         quest.set_turn(self._parse_turn())
         self.active_turn = quest.get_turn()
-        print(f"Quest: {quest.get_turn()}")
         try:
             if not party or len(party.members) == 0:
                 return
@@ -147,8 +167,17 @@ class Parser:
 
 
     def get_asset_id(self) -> list[str]:
-        path = Path("./db")
-        return [f.stem for f in path.iterdir() if f.is_file()]
+        # Check both bundled and local paths
+        bundled_path = Path(resource_path("db"))
+        local_path = Path(os.path.abspath("db"))
+        
+        ids = set()
+        for path in [bundled_path, local_path]:
+            if path.exists():
+                for f in path.iterdir():
+                    if f.is_file():
+                        ids.add(f.stem)
+        return list(ids)
 
     def _parse_raid(self) -> RaidInfo:
         try:
@@ -187,11 +216,7 @@ class Parser:
                 break
 
             char_pid = str(member.get("pid_image", ""))
-            expected_filename = f"char_{char_pid}.png"
-            img_path = f"./db/{expected_filename}"
-
-            if not os.path.exists(img_path):
-                img_path = download_asset(char_pid, "char")
+            img_path = resolve_path(char_pid, "char", "char")
 
             try:
                 char = Character(
@@ -220,11 +245,7 @@ class Parser:
                 if not summon_id:
                     continue
 
-                expected_filename = f"summon_{summon_id}.png"
-                img_path = f"./db/{expected_filename}"
-
-                if not os.path.exists(img_path):
-                    img_path = download_asset(summon_id, "summon")
+                img_path = resolve_path(summon_id, "summon", "summon")
 
                 summon = Summon(
                     position=i,
@@ -240,11 +261,7 @@ class Parser:
                 friend_id = str(supporter.get("image_id", ""))
                 friend_name = supporter.get("name")
 
-                expected_filename = f"summon_{friend_id}.png"
-                img_path = f"./db/{expected_filename}"
-
-                if not os.path.exists(img_path):
-                    img_path = download_asset(friend_id, "summon")
+                img_path = resolve_path(friend_id, "summon", "summon")
 
                 summon = Summon(
                     position=5,
@@ -278,7 +295,6 @@ class Parser:
             for hit in hit_sequence:
                 dmg_dealt = int(hit.get("value", 0))
                 party_member.deal_dmg(dmg_dealt, self.active_turn)
-                print(f"Normal attack {party_member.get_name()}: {dmg_dealt}")
 
     def _record_ability(self, action):
         abil_name = action.get("name", "")
@@ -306,7 +322,6 @@ class Parser:
             for hit in hit_sequence:
                 dmg_dealt = int(hit.get("value", 0))
                 party_member.deal_dmg(dmg_dealt, self.active_turn)
-                print(f"Loop damage {party_member.get_name()}: {dmg_dealt}")
 
     def _parse_ougi(self, action, party: Party):
         attacker_idx = action.get("pos", 0)
@@ -317,7 +332,6 @@ class Parser:
             for hit in hits:
                 dmg_val = int(hit.get("value", 0))
                 party_member.deal_dmg(dmg_val, self.active_turn, "ougi")
-                print(f"Ougi {party_member.get_name()}: {dmg_val}")
 
     def _parse_single_hit_ability(self, action, party: Party):
         if not self.ability_queue:
@@ -333,7 +347,6 @@ class Parser:
         for hit in hits:
             dmg_dealt = int(hit.get("value", 0))
             party[top_ability.pos].deal_dmg(dmg_dealt, self.active_turn, "skill")
-            print(f"Single shot {party_member.get_name()}: {dmg_dealt}")
 
     def _parse_dead_character(self, action, party: Party):
         dead_pos = action.get("pos")

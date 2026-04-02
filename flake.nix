@@ -18,6 +18,7 @@
               pyside6
               requests
               lxml
+              psutil
             ]))
           ];
 

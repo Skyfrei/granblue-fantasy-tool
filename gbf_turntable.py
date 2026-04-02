@@ -6,12 +6,21 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QRect
 from PySide6.QtGui import QPainter, QColor, QFont
 import time
+import os
 from gbf_party import Quest
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 def load_stylesheet(file_path):
-    with open(file_path, "r") as f:
-        return f.read()
- 
+    path = resource_path(file_path)
+    with open(path, "r") as f:
+        return f.read() 
+
 class BarDelegate(QStyledItemDelegate):
     def paint(self, painter, opt, idx):
         try:

@@ -3,22 +3,40 @@ import json
 import binascii
 import sys
 import signal
+import os
+import platform
 import gzip
+import shutil
+
+import psutil
+
 from PySide6.QtCore import QThread, Signal, Slot, QTimer
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 from typing import Any, Dict
 from gbf_party import Party, Quest
 from gbf_parser import Parser
 from gbf_gui import GBFDpsMeter as gbf_gui
 
 
-INTERFACE = "enp1s0"
 KEYLOG_FILE = "/home/sky/code/granblue/gbf_keys.log"
 DUMP_FILE = "./all_gbf_dump4.json"
 
 
 def find_interface():
-    pass
+    stats = psutil.net_if_stats()
+    addrs = psutil.net_if_addrs()
+    best_match = None
+    for name, info in stats.items():
+        if info.isup and "loopback" not in name.lower() and "lo" != name:
+            if name in addrs:
+                for addr in addrs[name]:
+                    if addr.family == 2:
+                        return name 
+                        
+    for name, info in stats.items():
+        if info.isup: return name
+        
+    return "1"
 
 def get_parser(json_data: Dict[str, any]) -> None:
     p = Parser(json_data)
@@ -39,26 +57,67 @@ def update(par: Parser, quest: Quest):
     par.parse_damage(quest)
     return False
 
+
+def set_windows_user_env(key, value):
+    try:
+        subprocess.run(["setx", key, value], check=True, capture_output=True)
+        return True
+    except Exception as e:
+        print(f"Failed to set Windows env: {e}")
+        return False
+
+def set_linux_user_env(key, value):
+    try:
+        bashrc_path = os.path.expanduser("~/.bashrc")
+        export_line = f'export {key}="{value}"\n'
+        
+        with open(bashrc_path, "r") as f:
+            lines = f.readlines()
+            
+        if any(f"export {key}=" in line for line in lines):
+            return True # Already exists
+            
+        with open(bashrc_path, "a") as f:
+            f.write(f"\n# GBF Tool Keylog\n{export_line}")
+        return True
+    except Exception as e:
+        print(f"Failed to set Linux env: {e}")
+        return False
+
 class CaptureThread(QThread):
     update_signal = Signal(object)
 
     def __init__(self):
         super().__init__()
+        #self.init_env()
         # Use your existing helper functions
+        self.interface = find_interface()
         self.parser = get_parser({})
         self.quest_list = list()
         self.active_quest = None
         self.process = None
         self.keep_running = True
         self.packet_buffer = b""
-    
+
+   
+    def init_env(self):
+        key = "SSLKEYLOGFILE"
+        path = os.path.abspath("gbf_keys.log")
+        if os.environ.get(key) == path:
+            return
+        success = False
+        if platform.system() == "Window":
+            success = set_windows_user_env(key, path)
+        else:
+            success = set_linux_user_env(key, path)
+
     def run(self):
         with open(KEYLOG_FILE, 'w') as f:
             f.write("") 
 
         cmd = [
             "tshark",
-            "-i", INTERFACE,
+            "-i", self.interface,
             "-o", f"tls.keylog_file:{KEYLOG_FILE}",
             "-f", "host steam.granbluefantasy.com",
             "-T", "fields",
@@ -136,6 +195,19 @@ class LiveMeter(gbf_gui):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    if not shutil.which("tshark"):
+        error_dialog = QMessageBox()
+        error_dialog.setIcon(QMessageBox.Icon.Critical)
+        error_dialog.setWindowTitle("Missing Dependency: TShark")
+        error_dialog.setText("TShark was not found on your system.")
+        error_dialog.setInformativeText(
+            "This tool requires Wireshark/TShark to function.\n\n"
+            "Please install Wireshark or TShark."
+        )
+        error_dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
+        
+        error_dialog.exec()
+        sys.exit(0)
 
     window = LiveMeter()
     window.show()

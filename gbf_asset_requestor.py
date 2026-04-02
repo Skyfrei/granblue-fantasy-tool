@@ -2,6 +2,8 @@ import requests
 import os
 from lxml import html
 import re
+import sys
+
 
 
 CDN_BASE = "https://prd-game-a-granbluefantasy.akamaized.net/assets_en/img/sp/assets"
@@ -13,6 +15,18 @@ CDN_PATH_MAP = {
     "leader": "leader/pm", # MC Classes/Skins
     "weapon": "weapon/ls"
 }
+
+def get_persistent_db():
+    if getattr(sys, 'frozen', False):
+        # Running as .exe
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        # Running as .py
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    db_path = os.path.join(base_dir, "db")
+    os.makedirs(db_path, exist_ok=True)
+    return db_path
 
 def get_wiki_image_by_id(asset_id, asset_type="char"):
     api_url = "https://gbf.wiki/api.php"
@@ -77,13 +91,13 @@ def download_asset(asset_id, asset_type="char"):
         prefix = type_prefix.get(asset_type, "char_")
         ext = "jpg" if asset_type in ("raid", "weapon") else "png"
         
-        save_path = f"./db/{prefix}{asset_id}.{ext}"
-        os.makedirs("./db", exist_ok=True)
+
+        filename = f"{prefix}{asset_id}.{ext}"
+        save_path = os.path.join(get_persistent_db(), filename)
         
         with open(save_path, "wb") as f:
             f.write(r.content)
             
-        print(f"Done! Downloaded {asset_id} from {source} -> {save_path}")
         return save_path
         
     except Exception as e:

@@ -21,8 +21,16 @@ from gbf_raidinfo import QRaidInfo
 
 
 # ── Image Threading (Improved Quality) ─────────────────────────────────────
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 def load_stylesheet(file_path):
-    with open(file_path, "r") as f:
+    path = resource_path(file_path)
+    with open(path, "r") as f:
         return f.read()
 
 class ImageAssigner(QThread):
@@ -34,14 +42,14 @@ class ImageAssigner(QThread):
 
     def run(self):
         paths_to_check = [
-            f"./db/{self.char_id}.png",
-            f"./db/char_{self.char_id}.png",
-            f"./db/summon_{self.char_id}.png",
-            f"./db/raid_{self.char_id}.jpg",
-            f"./db/weapon_{self.char_id}.jpg",
+            resource_path(f"db/{self.char_id}.png"),
+            resource_path(f"db/char_{self.char_id}.png"),
+            resource_path(f"db/summon_{self.char_id}.png"),
+            resource_path(f"db/raid_{self.char_id}.jpg"),
+            resource_path(f"db/weapon_{self.char_id}.jpg"),
             self.char_id 
         ]
-        
+
         image = QImage()
         for path in paths_to_check:
             if os.path.exists(path):
@@ -286,7 +294,10 @@ class GBFDpsMeter(QMainWindow):
         self.resize(1000, 800)
         self.setStyleSheet(load_stylesheet("style.qss"))
         self.current_quest = None
-        self.raid_log_path = "raid_log/"
+        self.raid_log_path = os.path.join(os.path.abspath("."), "raid_log")
+        
+        if not os.path.exists(self.raid_log_path):
+            os.makedirs(self.raid_log_path)
 
         central = QWidget()
         self.setCentralWidget(central)
