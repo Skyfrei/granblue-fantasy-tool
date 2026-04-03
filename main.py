@@ -18,9 +18,9 @@ from gbf_parser import Parser
 from gbf_gui import GBFDpsMeter as gbf_gui
 
 
-KEYLOG_FILE = "/home/sky/code/granblue-fantasy-tool/gbf_keys.log"
+HOME_DIR = os.path.expanduser("~")
+KEYLOG_FILE = os.path.join(HOME_DIR, "code/granblue-fantasy-tool/gbf_keys.log")
 DUMP_FILE = "./all_gbf_dump4.json"
-
 
 def find_interface():
     stats = psutil.net_if_stats()
@@ -105,7 +105,7 @@ class CaptureThread(QThread):
         if os.environ.get(key) == path:
             return
         success = False
-        if platform.system() == "Window":
+        if platform.system() == "Windows":
             success = set_windows_user_env(key, path)
         else:
             success = set_linux_user_env(key, path)
@@ -187,6 +187,12 @@ class LiveMeter(gbf_gui):
     def closeEvent(self, event):
         print("Closing... Cleaning up threads.")
         self.thread.stop()
+        if os.path.exists(KEYLOG_FILE):
+            try:
+                os.remove(KEYLOG_FILE)
+                print(f"Successfully deleted: {KEYLOG_FILE}")
+            except Exception as e:
+                print(f"Error deleting keylog file: {e}")
         event.accept()
 
 
