@@ -165,9 +165,6 @@ class Party:
                 {
                     "position": c.pos,
                     "name": c.name,
-                    "hp": c.hp,
-                    "max_hp": c.max_hp,
-                    "img_id": c.img_id,
                     "damage_stats": {
                         "total": c.total_dmg_dealt,
                         "autos": c.auto_dmg,

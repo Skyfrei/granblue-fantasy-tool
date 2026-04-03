@@ -49,9 +49,11 @@ class ImageAssigner(QThread):
         potential_files = [
             f"{self.char_id}.png",
             f"char_{self.char_id}.png",
+            f"char_{self.char_id}.jpg",
             f"summon_{self.char_id}.png",
             f"raid_{self.char_id}.jpg",
             f"weapon_{self.char_id}.jpg"
+            f"weapon_{self.char_id}.png"
         ]
 
         target_path = None
