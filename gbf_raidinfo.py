@@ -109,15 +109,6 @@ class QRaidInfo(QWidget):
         self.layout.setContentsMargins(10, 10, 10, 10)
         self.layout.setSpacing(15)
 
-        # 1. Raid Banner Image
-        self.lbl_image = QLabel()
-        self.lbl_image.setFixedSize(200, 70)
-        self.lbl_image.setStyleSheet(load_stylesheet("style.qss"))
-        self.lbl_image.setScaledContents(True)
-        # Placeholder text if no image is loaded
-        self.lbl_image.setText("RAID BANNER")
-        self.lbl_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
         # 2. Level and Name
         self.lbl_name = QLabel("Lvl 200 Akasha")
         self.lbl_name.setStyleSheet(load_stylesheet("style.qss"))
@@ -138,7 +129,6 @@ class QRaidInfo(QWidget):
         self.log_btn.setStyleSheet(load_stylesheet("style.qss"))
 
         # Add everything to the widget's internal vertical layout
-        self.layout.addWidget(self.lbl_image)
         self.layout.addWidget(self.lbl_name)
         self.layout.addWidget(self.lbl_hp)
         self.layout.addWidget(self.btn_action)

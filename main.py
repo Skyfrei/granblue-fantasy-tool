@@ -68,17 +68,24 @@ def set_windows_user_env(key, value):
 
 def set_linux_user_env(key, value):
     try:
-        bashrc_path = os.path.expanduser("~/.bashrc")
-        export_line = f'export {key}="{value}"\n'
-        
-        with open(bashrc_path, "r") as f:
-            lines = f.readlines()
-            
-        if any(f"export {key}=" in line for line in lines):
-            return True # Already exists
-            
-        with open(bashrc_path, "a") as f:
+        shell_path = os.environ.get("SHELL", "")
+        if "fish" in shell_path:
+            config_path = os.path.expanduser("~/.config/fish/config.fish")
+            export_line = f'set -gx {key} "{value}"\n'
+            match_str = f"set -gx {key}"
+        else:
+            config_path = os.path.expanduser("~/.bashrc")
+            export_line = f'export {key}="{value}"\n'
+            match_str = f"export {key}="
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        if os.path.exists(config_path):
+            with open(config_path, "r") as f:
+                if any(match_str in line for line in f):
+                    return True
+        with open(config_path, "a") as f:
             f.write(f"\n# GBF Tool Keylog\n{export_line}")
+        
+        print(f"Environment variable set in {config_path}. Please restart your shell.")
         return True
     except Exception as e:
         print(f"Failed to set Linux env: {e}")

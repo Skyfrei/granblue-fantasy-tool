@@ -28,6 +28,11 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+DB_PATH = resource_path("db")
+AVAILABLE_ASSETS = set()
+if os.path.exists(DB_PATH):
+    AVAILABLE_ASSETS = set(os.listdir(DB_PATH))
+
 def load_stylesheet(file_path):
     path = resource_path(file_path)
     with open(path, "r") as f:
@@ -41,29 +46,34 @@ class ImageAssigner(QThread):
         self.char_id = char_id
 
     def run(self):
-        paths_to_check = [
-            resource_path(f"db/{self.char_id}.png"),
-            resource_path(f"db/char_{self.char_id}.png"),
-            resource_path(f"db/summon_{self.char_id}.png"),
-            resource_path(f"db/raid_{self.char_id}.jpg"),
-            resource_path(f"db/weapon_{self.char_id}.jpg"),
-            self.char_id 
+        potential_files = [
+            f"{self.char_id}.png",
+            f"char_{self.char_id}.png",
+            f"summon_{self.char_id}.png",
+            f"raid_{self.char_id}.jpg",
+            f"weapon_{self.char_id}.jpg"
         ]
 
-        image = QImage()
-        for path in paths_to_check:
-            if os.path.exists(path):
-                image.load(path)
+        target_path = None
+        for filename in potential_files:
+            if filename in AVAILABLE_ASSETS:
+                target_path = os.path.join(DB_PATH, filename)
                 break
-        if not image.isNull():
-            self.finished.emit(image, self.char_id)
-        else:
-            print(f"DEBUG: Asset {self.char_id} not found in ./db/")
 
+        if not target_path and os.path.exists(self.char_id):
+            target_path = self.char_id
+
+        if target_path:
+            image = QImage()
+            if image.load(target_path):
+                self.finished.emit(image, self.char_id)
+                return
+
+        print(f"DEBUG: Asset {self.char_id} not found in cache or disk.")
 class CharacterIcon(QLabel):
-    def __init__(self):
+    def __init__(self, width, height):
         super().__init__()
-        self.setFixedSize(100, 100) 
+        self.setMinimumSize(width, height)
         self.setStyleSheet(load_stylesheet("style.qss"))
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.current_id = None
@@ -111,7 +121,7 @@ class CharacterIcon(QLabel):
         if self.original_image and not self.original_image.isNull():
             scaled = self.original_image.scaled(
                 self.size(), 
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding, # Better for portraits
+                Qt.AspectRatioMode.KeepAspectRatio, # Better for portraits
                 Qt.TransformationMode.SmoothTransformation
             )
             self.setPixmap(QPixmap.fromImage(scaled))
@@ -120,6 +130,7 @@ class DpsTable(QTableWidget):
     def __init__(self):
         super().__init__()
         self.setColumnCount(6)
+        self.setMinimumHeight(250)
         self.setHorizontalHeaderLabels([
             "Rank", "Name", "Auto", "Ougi", "Skill", "Total"
         ])
@@ -159,16 +170,14 @@ class QPartyIcons(QWidget):
     def __init__(self):
         super().__init__()
         # Width: (60px * 3) + 20px for padding/spacing
-        self.setFixedWidth(300) 
-        self.setFixedHeight(200) 
-        
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)       
         self.grid = QGridLayout(self)
         self.grid.setContentsMargins(5, 5, 5, 5)
-        self.grid.setSpacing(20)
+        self.grid.setSpacing(5)
+        self.setMaximumWidth(200)
         
-        self.slots = [CharacterIcon() for _ in range(6)]
+        self.slots = [CharacterIcon(60, 60) for _ in range(6)]
         for i, slot in enumerate(self.slots):
-            slot.setFixedSize(100, 100) # Ensure icons stay square
             self.grid.addWidget(slot, i // 3, i % 3)
 
     def update_party_icons(self, members):
@@ -181,15 +190,12 @@ class QSummons(QWidget):
     def __init__(self):
         super().__init__()
         self.grid = QGridLayout(self)
-        self.grid.setSpacing(20)
-        self.setFixedHeight(260) 
-        self.setFixedWidth(600)
+        self.grid.setSpacing(5)
+        self.setMaximumHeight(220)
+        self.setMaximumWidth(400)
 
         # Create 6 slots
-        self.slots = [CharacterIcon() for _ in range(6)]
-        for slot in self.slots:
-            slot.setFixedSize(220, 120)
-
+        self.slots = [CharacterIcon(80, 45) for _ in range(6)]
         # Row 0
         self.grid.addWidget(self.slots[0], 0, 0) # Main
         self.grid.addWidget(self.slots[1], 0, 1) # Sub 1
@@ -219,7 +225,9 @@ class DamagePieChart(QChartView):
         self.chart.setTitleBrush(Qt.white)
         self.setChart(self.chart)
         self.series = QPieSeries()
-        self.setFixedSize(450, 350)
+        self.setMinimumSize(300, 200)
+        self.setMaximumSize(450, 350)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
     def update_chart(self, character):
         self.chart.removeAllSeries()
@@ -257,13 +265,11 @@ class QItems(QWidget):
         self.grid = QGridLayout(self)
         self.grid.setContentsMargins(5, 5, 5, 5)
         self.grid.setSpacing(5)
-        self.setFixedWidth(360) # Fits 5 tall weapons across
+        self.setMaximumHeight(200)
 
         # 10 slots for the weapon grid
-        self.slots = [CharacterIcon() for _ in range(10)]
+        self.slots = [CharacterIcon(40, 80) for _ in range(10)]
         for i, slot in enumerate(self.slots):
-            # OVERRIDE: Set the tall card size only for these instances
-            slot.setFixedSize(65, 130) 
             self.grid.addWidget(slot, i // 5, i % 5)
 
     def update_items(self, item_list):
@@ -291,6 +297,7 @@ class GBFDpsMeter(QMainWindow):
     def __init__(self, unused_path=None): # unused_path keeps signature for main.py
         super().__init__()
         self.setWindowTitle("Granblue Fantasy tool")
+        self.setMinimumSize(800, 600)
         self.resize(1000, 800)
         self.setStyleSheet(load_stylesheet("style.qss"))
         self.current_quest = None
@@ -320,15 +327,17 @@ class GBFDpsMeter(QMainWindow):
         bottom.addWidget(self.party_portraits)
         bottom.addStretch()
         self.add_summons(bottom)
-        self.add_items(self.main_lay)
+        item_lay = self.build_bottom()
+        self.add_items(item_lay)
+        item_lay.addStretch()
         self.add_raid_members(self.main_lay)
 
          
-        #self.btn_save_log = QPushButton("EXPORT RAID LOG (.JSON)")
-        #self.btn_save_log.setCursor(Qt.CursorShape.PointingHandCursor)
-        #self.btn_save_log.setFixedHeight(40)
-        #self.btn_save_log.clicked.connect(self.save_party_to_file)
-        #self.main_lay.addWidget(self.btn_save_log)
+        self.btn_save_log = QPushButton("Export raid")
+        self.btn_save_log.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_save_log.setFixedHeight(40)
+        self.btn_save_log.clicked.connect(self.save_party_to_file)
+        item_lay.addWidget(self.btn_save_log)
         self.main_lay.addStretch()
 
 

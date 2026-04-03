@@ -4,8 +4,6 @@ from lxml import html
 import re
 import sys
 
-
-
 CDN_BASE = "https://prd-game-a-granbluefantasy.akamaized.net/assets_en/img/sp/assets"
 
 CDN_PATH_MAP = {

@@ -159,7 +159,7 @@ class Party:
         except IndexError:
             raise IndexError(f"Summon index {key} is out of range (0-{len(self.summon)-1})")
 
-    def export_to_json(self, indent=4) -> str:
+    def export_to_json(self, indent=2) -> str:
         party_data = {
             "members": [
                 {
@@ -188,6 +188,12 @@ class Party:
                     "cooldown": s.cooldown,
                     "img_id": s.img_id
                 } for s in self.summons
+            ],
+            "grid": [
+                {
+                    "position": item.get_pos(),
+                    "item_img": item.get_img()
+                } for item in self.get_items()
             ]
         }
         return json.dumps(party_data, indent=2)

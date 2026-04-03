@@ -68,6 +68,9 @@ class MetricCard(QFrame):
     def __init__(self, title, parent=None):
         super().__init__(parent)
         self.setStyleSheet(load_stylesheet("style.qss"))
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.setMinimumWidth(20)
+        self.setMaximumWidth(100)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 5, 10, 5)
         layout.setSpacing(2)
