@@ -18,7 +18,7 @@ from gbf_parser import Parser
 from gbf_gui import GBFDpsMeter as gbf_gui
 
 
-KEYLOG_FILE = "/home/sky/code/granblue/gbf_keys.log"
+KEYLOG_FILE = "/home/sky/code/granblue-fantasy-tool/gbf_keys.log"
 DUMP_FILE = "./all_gbf_dump4.json"
 
 
