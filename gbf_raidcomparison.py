@@ -37,9 +37,8 @@ class QDmgGraph(QChartView):
 
         for i, (q_id, quest) in enumerate(matching_quests.items()):
             series = QLineSeries()
-            
-            # FIX: Convert q_id to string before slicing to avoid TypeError
-            series.setName(f"Raid {str(q_id)[-4:]}") 
+            party_names = ", ".join(c.get_name() for c in quest.get_party().get_members_list())
+            series.setName(f"{party_names}")
             
             pen = QPen(QColor(colors[i % len(colors)]))
             pen.setWidth(2)
