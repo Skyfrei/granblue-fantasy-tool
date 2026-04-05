@@ -99,6 +99,7 @@ class RaidDetailsDialog(QDialog):
                 self.table.setCellWidget(i, 1, note_widget)
 
         self.table.resizeRowsToContents()
+
 class QRaidInfo(QWidget):
     def __init__(self):
         super().__init__()
@@ -109,16 +110,16 @@ class QRaidInfo(QWidget):
         self.layout.setContentsMargins(10, 10, 10, 10)
         self.layout.setSpacing(15)
 
-        # 2. Level and Name
         self.lbl_name = QLabel("Lvl 200 Akasha")
         self.lbl_name.setStyleSheet(load_stylesheet("style.qss"))
         self.lbl_name.setWordWrap(True)
 
-        # 3. HP Display
         self.lbl_hp = QLabel("HP: 100.0%")
         self.lbl_hp.setStyleSheet(load_stylesheet("style.qss"))
 
-        # 4. Action Button
+        self.lbl_dmg_done = QLabel("Hit for: 0%")
+        self.lbl_dmg_done.setStyleSheet(load_stylesheet("style.qss"))
+
         self.btn_action = QPushButton("Raid Details")
         self.btn_action.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_action.setStyleSheet(load_stylesheet("style.qss"))
@@ -131,9 +132,9 @@ class QRaidInfo(QWidget):
         # Add everything to the widget's internal vertical layout
         self.layout.addWidget(self.lbl_name)
         self.layout.addWidget(self.lbl_hp)
+        self.layout.addWidget(self.lbl_dmg_done)
         self.layout.addWidget(self.btn_action)
         self.layout.addWidget(self.log_btn)
-
         
         # Add a stretch at the bottom to keep everything at the top
         self.layout.addStretch()
@@ -159,7 +160,9 @@ class QRaidInfo(QWidget):
         formatted_honor = f"{honor_val:,}"
         max_hp = raid.get_max_hp()
         percent = (raid.get_hp() / max_hp) if max_hp > 0 else 0
+        
 
+        self.lbl_dmg_done.setText(f"Done: {(dmg_done / max_hp):.2%}")
         self.lbl_hp.setText(
             f"HP: {formatted_hp} ({percent:.0%})\n"
             f"Honour: {formatted_honor}"

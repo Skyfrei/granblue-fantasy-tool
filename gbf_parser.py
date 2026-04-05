@@ -37,6 +37,7 @@ class Parser:
         self.data = json_data
         self.ability_queue = list()
         self.combat_log = list()
+        self.quest_list = dict()
         self.active_turn = 0
         self.items = None
 
@@ -51,7 +52,14 @@ class Parser:
                 self.items = items
             p = Party(members, summons, self.items)
             quest_id = self.data.get("raid_id", "")
-            quest = Quest(raidinfo, p, quest_id, turn)
+            quest = None
+
+            if quest_id not in self.quest_list:
+                quest = Quest(raidinfo, p, quest_id, turn)
+                self.quest_list[quest_id] = quest
+            else:
+                quest = self.quest_list[quest_id]
+            
         except Exception as e:
             print(f"Error in parse {e}")
         return quest

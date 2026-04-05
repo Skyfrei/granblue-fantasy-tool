@@ -14,7 +14,6 @@ from PySide6.QtGui import (
 )
 from PySide6.QtCharts import QChart, QChartView, QPieSeries
 
-# Import your classes
 from gbf_party import Party, Character, Quest, RaidInfo
 from gbf_turntable import QDmgPerTurn
 from gbf_raidinfo import QRaidInfo
@@ -52,7 +51,7 @@ class ImageAssigner(QThread):
             f"char_{self.char_id}.jpg",
             f"summon_{self.char_id}.png",
             f"raid_{self.char_id}.jpg",
-            f"weapon_{self.char_id}.jpg"
+            f"weapon_{self.char_id}.jpg",
             f"weapon_{self.char_id}.png"
         ]
 
@@ -133,6 +132,7 @@ class DpsTable(QTableWidget):
         super().__init__()
         self.setColumnCount(6)
         self.setMinimumHeight(250)
+        self.setRowCount(6)
         self.setHorizontalHeaderLabels([
             "Rank", "Name", "Auto", "Ougi", "Skill", "Total"
         ])
@@ -151,7 +151,6 @@ class DpsTable(QTableWidget):
         self.setStyleSheet(load_stylesheet("style.qss"))
 
     def update_table(self, sorted_members, total_raid_dmg):
-        self.setRowCount(len(sorted_members))
         for i, char in enumerate(sorted_members):
             total = char.get_total_dmg()
             breakdown = char.get_breakdown()
@@ -334,12 +333,7 @@ class GBFDpsMeter(QMainWindow):
         item_lay.addStretch()
         self.add_raid_members(self.main_lay)
 
-         
-        self.btn_save_log = QPushButton("Export raid")
-        self.btn_save_log.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_save_log.setFixedHeight(40)
-        self.btn_save_log.clicked.connect(self.save_party_to_file)
-        item_lay.addWidget(self.btn_save_log)
+        self.add_buttons(self.main_lay)
         self.main_lay.addStretch()
 
 
@@ -392,6 +386,74 @@ class GBFDpsMeter(QMainWindow):
         self.item_grid = QItems()
         container.addWidget(self.item_grid)
 
+    def add_buttons(self, container):
+        footer = QWidget()
+        horizontal = QHBoxLayout(footer)
+        btn_lay = QVBoxLayout()
+
+        horizontal.addStretch()
+
+        self.btn_save_log = QPushButton("Export raid")
+        self.btn_save_log.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_save_log.setFixedHeight(40)
+        self.btn_save_log.clicked.connect(self.save_party_to_file)
+
+        self.btn_clipboard = QPushButton("Copy setup to clipboard")
+        self.btn_clipboard.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clipboard.setFixedHeight(40)
+        self.btn_clipboard.clicked.connect(self.copy_to_clipboard) # change this pls
+
+        # Opacity
+#        opacity_lay = QHBoxLayout()
+#        self.lbl_opacity = QLabel("Opacity: 100%")
+#        
+#        self.slider_opacity = QSlider(Qt.Orientation.Horizontal)
+#        self.slider_opacity.setRange(20, 100) # Minimum 20% so it doesn't disappear
+#        self.slider_opacity.setValue(100)
+#        self.slider_opacity.setFixedWidth(100)
+#        self.slider_opacity.valueChanged.connect(self.change_opacity)
+        
+
+        btn_lay.addWidget(self.btn_save_log)
+        btn_lay.addWidget(self.btn_clipboard)
+
+#        btn_lay.addWidget(self.lbl_opacity)
+#        btn_lay.addWidget(self.slider_opacity)
+
+        horizontal.addLayout(btn_lay)
+
+        self.main_lay.addWidget(footer)
+
+
+#    def change_opacity(self, value):
+#        opacity = value / 100.0
+#        self.setWindowOpacity(opacity)
+#        self.lbl_opacity.setText(f"Opacity: {value}%")
+
+    @Slot()
+    def copy_to_clipboard(self):
+        try:
+            table_pixmap = self.dps_table.grab()
+            items_pixmap = self.item_grid.grab()
+    
+            padding = 10
+            total_w = max(table_pixmap.width(), items_pixmap.width()) + padding * 2
+            total_h = table_pixmap.height() + items_pixmap.height() + padding * 3
+    
+            canvas = QPixmap(total_w, total_h)
+            canvas.fill(QColor("#1e1e2e"))
+    
+            painter = QPainter(canvas)
+            painter.drawPixmap(padding, padding, table_pixmap)
+            painter.drawPixmap(padding, padding + table_pixmap.height() + padding, items_pixmap)
+            painter.end()
+    
+            QApplication.clipboard().setPixmap(canvas)
+            self.btn_clipboard.setText("Copied!")
+        except Exception as e:
+            print(f"Clipboard error: {e}")
+            self.btn_clipboard.setText("Error!")
+
     @Slot()
     def save_party_to_file(self):
         try:
@@ -433,8 +495,6 @@ class GBFDpsMeter(QMainWindow):
 
             # turn table update
             self.damage_turn.update_turn_table(quest)
-            for i in quest.get_party().get_items():
-                print(i.get_img())
             self.item_grid.update_items(quest.get_party().get_items())
                 
         except Exception as e:

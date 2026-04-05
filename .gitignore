@@ -5,3 +5,4 @@ logs/
 __pycache__
 gbf_keys.log
 raid_log/
+*.json

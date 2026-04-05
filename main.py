@@ -150,9 +150,9 @@ class CaptureThread(QThread):
                     if decode.startswith("{") and decode.endswith("}"):
                         try:
                             json_data = json.loads(decode)
-                            #json.dump(json_data, f, indent=2)
-                            #f.write("\n\n")
-                            #f.flush()
+                            json.dump(json_data, f, indent=2)
+                            f.write("\n\n")
+                            f.flush()
                             self.parser.set_data(json_data)
                             if self.active_quest is None:
                                 temp_quest = get_quest(self.parser)

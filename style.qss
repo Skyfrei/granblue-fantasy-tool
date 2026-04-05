@@ -53,6 +53,7 @@ QTableWidget::item {
     background-color: #141720;
     color: #e8ecf4;
     border: none;
+    font-size: 14px;
 }
 
 /* Table Headers */
