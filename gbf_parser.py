@@ -306,16 +306,29 @@ class Parser:
         self.ability_queue.append(abil)
 
     def _parse_loop_damage(self, action, party: Party):
-        attacker_idx = action.get("total")[0]["pos"]
+        total = action.get("total", [])
+        if not total:
+            # Fallback: infer attacker from the hit data itself
+            dmg_payload = action.get("list", [])
+            attacker_idx = None
+            for hit_sequence in dmg_payload:
+                if isinstance(hit_sequence, list) and hit_sequence:
+                    attacker_idx = hit_sequence[0].get("pos")
+                    break
+            if attacker_idx is None:
+                return
+        else:
+            attacker_idx = total[0]["pos"]
+    
         party_member = party[attacker_idx]
         dmg_payload = action.get("list", [])
-
+    
         sequences = []
         if isinstance(dmg_payload, list):
             sequences = dmg_payload
         elif isinstance(dmg_payload, dict):
             sequences = dmg_payload.values()
-
+    
         for hit_sequence in sequences:
             if not isinstance(hit_sequence, list):
                 continue

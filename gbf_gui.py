@@ -412,7 +412,7 @@ class GBFDpsMeter(QMainWindow):
         self.main_lay.addWidget(footer)
 
     def add_dmg_graph(self, container):
-        self.btn_show_graph = QPushButton("View Damage Comparison")
+        self.btn_show_graph = QPushButton("Damage Comparison")
         self.btn_show_graph.setFixedHeight(40)
         self.btn_show_graph.clicked.connect(self.toggle_graph_window)
         container.addWidget(self.btn_show_graph)

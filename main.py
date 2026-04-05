@@ -115,6 +115,13 @@ class CaptureThread(QThread):
         else:
             success = set_linux_user_env(key, path)
 
+    def add_quest(self, quest):
+        if len(self.quest_dict.keys()) >= 10:
+            first_key = next(iter(self.quest_dict))
+            self.quest_dict.pop(first_key)           
+
+        self.quest_dict[quest.get_quest_id()] = quest
+
     def run(self):
         with open(KEYLOG_FILE, 'w') as f:
             f.write("") 
@@ -144,7 +151,9 @@ class CaptureThread(QThread):
                 except Exception as e:
                     continue
                 try:
-                    decode = self.packet_buffer.decode('utf-8', errors='ignore')
+                    decode = self.packet_buffer.decode('utf-8', errors='ignore').strip()
+                    if not decode:
+                        pass
                     if decode.startswith("{") and decode.endswith("}"):
                         try:
                             json_data = json.loads(decode)
@@ -156,7 +165,7 @@ class CaptureThread(QThread):
                                 temp_quest = get_quest(self.parser)
                                 if temp_quest and temp_quest.get_party().get_members_list():
                                     if temp_quest.get_quest_id() not in self.quest_dict:
-                                        self.quest_dict[temp_quest.get_quest_id()] = temp_quest
+                                        self.add_quest(temp_quest)
                                         self.active_quest = temp_quest
                                     else:
                                         self.active_quest = self.quest_dict[temp_quest.get_quest_id()]
