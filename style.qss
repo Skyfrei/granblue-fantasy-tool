@@ -79,6 +79,19 @@ QPushButton:hover {
     background-color: #ffffff;
 }
 
+QProgressBar {
+    border: 1px solid #555;
+    border-radius: 2px;
+    background-color: #222;
+    text-align: center;
+}
+
+/* This is the part that controls the color of the "health" */
+QProgressBar::chunk {
+    background-color: #e74c3c; /* A nice RPG red */
+    width: 1px; 
+}
+
 dividerLine {
     background-color: #252a38; /* Matches your BORDER color */
     min-height: 1px;           /* Forces it to occupy 1px of vertical space */

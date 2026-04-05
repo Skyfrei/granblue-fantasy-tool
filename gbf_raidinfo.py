@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QTableWidget, 
-                             QTableWidgetItem, QHeaderView, QLabel, QWidget, QPushButton)
+                             QTableWidgetItem, QHeaderView, QLabel, QWidget, QPushButton, QProgressBar)
 from PySide6.QtCore import Qt
 
 from gbf_party import RaidInfo
@@ -114,8 +114,16 @@ class QRaidInfo(QWidget):
         self.lbl_name.setStyleSheet(load_stylesheet("style.qss"))
         self.lbl_name.setWordWrap(True)
 
-        self.lbl_hp = QLabel("HP: 100.0%")
+        self.hp_bar = QProgressBar()
+        self.hp_bar.setRange(0, 100)
+        self.hp_bar.setValue(100)
+        self.hp_bar.setTextVisible(False)
+        self.hp_bar.setFixedHeight(7)
+        self.hp_bar.setStyleSheet(load_stylesheet("style.qss"))
+
+        self.lbl_hp = QLabel("HP: 100,000,000")
         self.lbl_hp.setStyleSheet(load_stylesheet("style.qss"))
+        self.lbl_hp.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.lbl_dmg_done = QLabel("Hit for: 0%")
         self.lbl_dmg_done.setStyleSheet(load_stylesheet("style.qss"))
@@ -131,6 +139,7 @@ class QRaidInfo(QWidget):
 
         # Add everything to the widget's internal vertical layout
         self.layout.addWidget(self.lbl_name)
+        self.layout.addWidget(self.hp_bar)
         self.layout.addWidget(self.lbl_hp)
         self.layout.addWidget(self.lbl_dmg_done)
         self.layout.addWidget(self.btn_action)
@@ -154,12 +163,17 @@ class QRaidInfo(QWidget):
     def update_raid_info(self, raid : RaidInfo, dmg_done: int):
         if self.raid is None:
             self.raid = raid
+
+        max_hp = raid.get_max_hp()
+        current_hp = raid.get_hp()
+        percent_val = (current_hp / max_hp * 100) if max_hp > 0 else 0
+        self.hp_bar.setValue(int(percent_val))
+
         self.lbl_name.setText(raid.get_name())
         formatted_hp = f"{raid.get_hp():,}"
         honor_val = dmg_done // 100
         formatted_honor = f"{honor_val:,}"
-        max_hp = raid.get_max_hp()
-        percent = (raid.get_hp() / max_hp) if max_hp > 0 else 0
+        percent = (current_hp / max_hp) if max_hp > 0 else 0
         
 
         self.lbl_dmg_done.setText(f"Done: {(dmg_done / max_hp):.2%}")
