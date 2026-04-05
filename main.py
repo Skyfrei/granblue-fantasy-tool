@@ -10,7 +10,7 @@ import shutil
 
 import psutil
 
-from PySide6.QtCore import QThread, Signal, Slot, QTimer
+from PySide6.QtCore import QThread, Signal, Slot, QTimer, Qt
 from PySide6.QtWidgets import QApplication, QMessageBox
 from typing import Any, Dict
 from gbf_party import Party, Quest
@@ -90,7 +90,8 @@ def set_linux_user_env(key, value):
         return False
 
 class CaptureThread(QThread):
-    update_signal = Signal(object)
+    update_signal = Signal(object) 
+    dict_signal = Signal(object)
 
     def __init__(self):
         super().__init__()
@@ -166,6 +167,7 @@ class CaptureThread(QThread):
                                 else:
                                     self.parser.parse_damage(self.active_quest)
                                     self.update_signal.emit(self.active_quest)
+                                    self.dict_signal.emit(self.quest_dict)
                         
                         except Exception as e:
                             print(e)  
@@ -189,7 +191,8 @@ class LiveMeter(gbf_gui):
         super().__init__() 
         self.setWindowTitle("Granblue Fantasy Tool")
         self.thread = CaptureThread()
-        self.thread.update_signal.connect(self.update_ui_live)
+        self.thread.update_signal.connect(self.update_ui_live, Qt.QueuedConnection)
+        self.thread.dict_signal.connect(self.update_graph_live, Qt.QueuedConnection)
         self.thread.start()
 
     def closeEvent(self, event):

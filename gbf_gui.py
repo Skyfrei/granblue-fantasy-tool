@@ -17,6 +17,7 @@ from PySide6.QtCharts import QChart, QChartView, QPieSeries
 from gbf_party import Party, Character, Quest, RaidInfo
 from gbf_turntable import QDmgPerTurn
 from gbf_raidinfo import QRaidInfo
+from gbf_raidcomparison import QDmgGraph
 
 
 # ── Image Threading (Improved Quality) ─────────────────────────────────────
@@ -332,8 +333,9 @@ class GBFDpsMeter(QMainWindow):
         self.add_items(item_lay)
         item_lay.addStretch()
         self.add_raid_members(self.main_lay)
-
+            
         self.add_buttons(self.main_lay)
+        
         self.main_lay.addStretch()
 
 
@@ -357,6 +359,7 @@ class GBFDpsMeter(QMainWindow):
         footer_lay = QHBoxLayout(footer_widget)
         self.main_lay.addWidget(footer_widget)
         return footer_lay
+
 
     def add_dps_table(self, container):
         self.dps_table = DpsTable()
@@ -401,34 +404,32 @@ class GBFDpsMeter(QMainWindow):
         self.btn_clipboard = QPushButton("Copy setup to clipboard")
         self.btn_clipboard.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_clipboard.setFixedHeight(40)
-        self.btn_clipboard.clicked.connect(self.copy_to_clipboard) # change this pls
-
-        # Opacity
-#        opacity_lay = QHBoxLayout()
-#        self.lbl_opacity = QLabel("Opacity: 100%")
-#        
-#        self.slider_opacity = QSlider(Qt.Orientation.Horizontal)
-#        self.slider_opacity.setRange(20, 100) # Minimum 20% so it doesn't disappear
-#        self.slider_opacity.setValue(100)
-#        self.slider_opacity.setFixedWidth(100)
-#        self.slider_opacity.valueChanged.connect(self.change_opacity)
-        
-
+        self.btn_clipboard.clicked.connect(self.copy_to_clipboard)
         btn_lay.addWidget(self.btn_save_log)
         btn_lay.addWidget(self.btn_clipboard)
-
-#        btn_lay.addWidget(self.lbl_opacity)
-#        btn_lay.addWidget(self.slider_opacity)
-
+        self.add_dmg_graph(btn_lay)
         horizontal.addLayout(btn_lay)
-
         self.main_lay.addWidget(footer)
 
+    def add_dmg_graph(self, container):
+        self.btn_show_graph = QPushButton("View Damage Comparison")
+        self.btn_show_graph.setFixedHeight(40)
+        self.btn_show_graph.clicked.connect(self.toggle_graph_window)
+        container.addWidget(self.btn_show_graph)
 
-#    def change_opacity(self, value):
-#        opacity = value / 100.0
-#        self.setWindowOpacity(opacity)
-#        self.lbl_opacity.setText(f"Opacity: {value}%")
+        self.graph = QDmgGraph() 
+        self.graph.setWindowTitle("Raid Damage Comparison")
+        self.graph.resize(900, 600)
+        self.graph.setStyleSheet("background-color: #1a1a1a; color: white;")
+
+    def toggle_graph_window(self):
+        if self.graph.isVisible():
+            self.graph.hide()
+        else:
+            self.graph.show()
+            self.graph.raise_() # Bring to front
+            self.graph.activateWindow() # Focus the window
+
 
     @Slot()
     def copy_to_clipboard(self):
@@ -496,7 +497,18 @@ class GBFDpsMeter(QMainWindow):
             # turn table update
             self.damage_turn.update_turn_table(quest)
             self.item_grid.update_items(quest.get_party().get_items())
-                
+            
         except Exception as e:
             print(f"UI Update Error: {e}")
 
+    @Slot(object)
+    def update_graph_live(self, quests: dict):
+        if not self.current_quest:
+            return
+        target_name = self.current_quest.get_raid().get_name()
+        send_over_quests = dict()
+        for q_id, q_obj in quests.items():
+            if q_obj.get_raid().get_name() == target_name:
+                send_over_quests[q_id] = q_obj
+
+        self.graph.update_data(send_over_quests)
