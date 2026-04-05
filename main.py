@@ -51,12 +51,10 @@ def has_quest_changed(par: Parser, q: Quest) -> bool:
         return True
     return False
 
-def update(par: Parser, quest: Quest):
+def needs_update(par: Parser, quest: Quest):
     if has_quest_changed(par, quest):
         return True
-    par.parse_damage(quest)
     return False
-
 
 def set_windows_user_env(key, value):
     try:
@@ -99,13 +97,12 @@ class CaptureThread(QThread):
         self.init_env()
         self.interface = find_interface()
         self.parser = get_parser({})
-        self.quest_list = list()
         self.active_quest = None
+        self.quest_dict = dict()
         self.process = None
         self.keep_running = True
         self.packet_buffer = b""
 
-   
     def init_env(self):
         key = "SSLKEYLOGFILE"
         path = os.path.abspath("gbf_keys.log")
@@ -150,20 +147,24 @@ class CaptureThread(QThread):
                     if decode.startswith("{") and decode.endswith("}"):
                         try:
                             json_data = json.loads(decode)
-                            json.dump(json_data, f, indent=2)
-                            f.write("\n\n")
-                            f.flush()
+                            #json.dump(json_data, f, indent=2)
+                            #f.write("\n\n")
+                            #f.flush()
                             self.parser.set_data(json_data)
                             if self.active_quest is None:
                                 temp_quest = get_quest(self.parser)
                                 if temp_quest and temp_quest.get_party().get_members_list():
-                                    self.active_quest = temp_quest
+                                    if temp_quest.get_quest_id() not in self.quest_dict:
+                                        self.quest_dict[temp_quest.get_quest_id()] = temp_quest
+                                        self.active_quest = temp_quest
+                                    else:
+                                        self.active_quest = self.quest_dict[temp_quest.get_quest_id()]
 
                             if self.active_quest:
-                                needs_reload = update(self.parser, self.active_quest)
-                                if needs_reload:
+                                if needs_update(self.parser, self.active_quest):
                                     self.active_quest = None
                                 else:
+                                    self.parser.parse_damage(self.active_quest)
                                     self.update_signal.emit(self.active_quest)
                         
                         except Exception as e:
