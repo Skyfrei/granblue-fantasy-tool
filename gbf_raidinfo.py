@@ -3,20 +3,10 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QTableWidget,
 from PySide6.QtCore import Qt
 
 from gbf_party import RaidInfo
+from gbf_styleloader import STYLESHEET, resource_path
 import re
 import os
 
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
-
-def load_stylesheet(file_path):
-    path = resource_path(file_path)
-    with open(path, "r") as f:
-        return f.read()
 
 class RaidDetailsDialog(QDialog):
     def __init__(self, boss_name, mechanics_list, parent=None):
@@ -111,7 +101,7 @@ class QRaidInfo(QWidget):
         self.layout.setSpacing(15)
 
         self.lbl_name = QLabel("Lvl 200 Akasha")
-        self.lbl_name.setStyleSheet(load_stylesheet("style.qss"))
+        self.lbl_name.setStyleSheet(STYLESHEET)
         self.lbl_name.setWordWrap(True)
 
         self.hp_bar = QProgressBar()
@@ -119,23 +109,23 @@ class QRaidInfo(QWidget):
         self.hp_bar.setValue(100)
         self.hp_bar.setTextVisible(False)
         self.hp_bar.setFixedHeight(7)
-        self.hp_bar.setStyleSheet(load_stylesheet("style.qss"))
+        self.hp_bar.setStyleSheet(STYLESHEET)
 
         self.lbl_hp = QLabel("HP: 100,000,000")
-        self.lbl_hp.setStyleSheet(load_stylesheet("style.qss"))
+        self.lbl_hp.setStyleSheet(STYLESHEET)
         self.lbl_hp.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.lbl_dmg_done = QLabel("Hit for: 0%")
-        self.lbl_dmg_done.setStyleSheet(load_stylesheet("style.qss"))
+        self.lbl_dmg_done.setStyleSheet(STYLESHEET)
 
         self.btn_action = QPushButton("Raid Details")
         self.btn_action.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_action.setStyleSheet(load_stylesheet("style.qss"))
+        self.btn_action.setStyleSheet(STYLESHEET)
         self.btn_action.clicked.connect(self.show_raid_details)
 
         self.log_btn = QPushButton("Combat log")
         self.log_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.log_btn.setStyleSheet(load_stylesheet("style.qss"))
+        self.log_btn.setStyleSheet(STYLESHEET)
 
         # Add everything to the widget's internal vertical layout
         self.layout.addWidget(self.lbl_name)

@@ -3,16 +3,10 @@ from dataclasses import dataclass
 from gbf_asset_requestor import download_asset
 from typing import Any, Dict
 from gbf_party import Party, Character, Summon, RaidInfo, Quest, Item
+from gbf_styleloader import resource_path
 import os
 import sys
 from pathlib import Path
-
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
 
 def resolve_path(image_id, prefix, asset_type):
     expected_filename = f"{prefix}_{image_id}.png"

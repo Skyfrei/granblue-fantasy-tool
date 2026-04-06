@@ -18,25 +18,15 @@ from gbf_party import Party, Character, Quest, RaidInfo
 from gbf_turntable import QDmgPerTurn
 from gbf_raidinfo import QRaidInfo
 from gbf_raidcomparison import QDmgGraph
+from gbf_styleloader import STYLESHEET, resource_path
 
 
 # ── Image Threading (Improved Quality) ─────────────────────────────────────
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
 
 DB_PATH = resource_path("db")
 AVAILABLE_ASSETS = set()
 if os.path.exists(DB_PATH):
     AVAILABLE_ASSETS = set(os.listdir(DB_PATH))
-
-def load_stylesheet(file_path):
-    path = resource_path(file_path)
-    with open(path, "r") as f:
-        return f.read()
 
 class ImageAssigner(QThread):
     finished = Signal(QImage, str)
@@ -76,7 +66,7 @@ class CharacterIcon(QLabel):
     def __init__(self, width, height):
         super().__init__()
         self.setMinimumSize(width, height)
-        self.setStyleSheet(load_stylesheet("style.qss"))
+        self.setStyleSheet(STYLESHEET)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.current_id = None
         self.original_image = None
@@ -149,7 +139,7 @@ class DpsTable(QTableWidget):
         
         self.setShowGrid(False)
         self.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.setStyleSheet(load_stylesheet("style.qss"))
+        self.setStyleSheet(STYLESHEET)
 
     def update_table(self, sorted_members, total_raid_dmg):
         for i, char in enumerate(sorted_members):
@@ -301,7 +291,7 @@ class GBFDpsMeter(QMainWindow):
         self.setWindowTitle("Granblue Fantasy tool")
         self.setMinimumSize(800, 600)
         self.resize(1000, 800)
-        self.setStyleSheet(load_stylesheet("style.qss"))
+        self.setStyleSheet(STYLESHEET)
         self.current_quest = None
         self.raid_log_path = os.path.join(os.path.abspath("."), "raid_log")
         

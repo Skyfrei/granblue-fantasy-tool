@@ -8,6 +8,7 @@ from PySide6.QtGui import QPainter, QColor, QFont
 import time
 import os
 from gbf_party import Quest
+from gbf_styleloader import STYLESHEET
 
 def resource_path(relative_path):
     try:
@@ -15,11 +16,6 @@ def resource_path(relative_path):
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
-
-def load_stylesheet(file_path):
-    path = resource_path(file_path)
-    with open(path, "r") as f:
-        return f.read() 
 
 class BarDelegate(QStyledItemDelegate):
     def paint(self, painter, opt, idx):
@@ -67,7 +63,7 @@ class BarDelegate(QStyledItemDelegate):
 class MetricCard(QFrame):
     def __init__(self, title, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(load_stylesheet("style.qss"))
+        self.setStyleSheet(STYLESHEET)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.setMinimumWidth(20)
         self.setMaximumWidth(100)
@@ -76,10 +72,10 @@ class MetricCard(QFrame):
         layout.setSpacing(2)
 
         self.title_lbl = QLabel(title.upper())
-        self.title_lbl.setStyleSheet(load_stylesheet("style.qss"))
+        self.title_lbl.setStyleSheet(STYLESHEET)
         
         self.val_lbl = QLabel("0")
-        self.val_lbl.setStyleSheet(load_stylesheet("style.qss"))
+        self.val_lbl.setStyleSheet(STYLESHEET)
         
         layout.addWidget(self.title_lbl)
         layout.addWidget(self.val_lbl)
@@ -104,14 +100,14 @@ class QDmgPerTurn(QWidget):
         self.line.setFrameShape(QFrame.HLine)
         self.line.setFrameShadow(QFrame.Sunken)
         self.line.setObjectName("dividerLine")
-        self.line.setStyleSheet(load_stylesheet("style.qss"))
+        self.line.setStyleSheet(STYLESHEET)
         self.main_layout.addWidget(self.line)
 
         # 3. The Original Table
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["Damage share", "Current turn", "Previous turn"])
-        self.table.setStyleSheet(load_stylesheet("style.qss"))
+        self.table.setStyleSheet(STYLESHEET)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         
         header = self.table.horizontalHeader()
