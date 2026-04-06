@@ -19,7 +19,7 @@ No browser extension required.
 
 The tool uses TShark or Wireshark to sniff network packets sent from the
 Granblue Fantasy domain. It parses those packets and presents the data
-through a desktop GUI built with PyQt5. No modifications to the game or
+through a desktop GUI built with PySide6. No modifications to the game or
 browser are made.
 
 Start this program before opening Granblue Fantasy in your browser.
@@ -27,7 +27,7 @@ Start this program before opening Granblue Fantasy in your browser.
 ## Requirements
 
 - Python 3
-- PyQt5
+- PySide6
 - TShark (part of Wireshark) installed and accessible in your PATH
 - Windows or Linux
 
