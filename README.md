@@ -47,10 +47,6 @@ Start this program before opening Granblue Fantasy in your browser.
 3. Install Python dependencies with `pip install -r requirements.txt`.
 4. Run `python main.py` before opening Granblue Fantasy in your browser.
 
-## Support
-
-If you find this tool useful, consider supporting development:
-[ko-fi.com/skyfrei](https://ko-fi.com/skyfrei)
 
 ## License
 This project is licensed under CC BY-NC 4.0. Free to use and modify. Commercial use is not permitted.
