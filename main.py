@@ -25,19 +25,24 @@ DUMP_FILE = "./all_gbf_dump4.json"
 def find_interface():
     stats = psutil.net_if_stats()
     addrs = psutil.net_if_addrs()
-    best_match = None
+    
+    # Common VPN interface prefixes
+    vpn_keywords = ["tun", "tap", "ppp", "wireguard", "forti", "tailscale", "swiss"]
+    
+    # 1. First, look for active VPN interfaces
+    for name, info in stats.items():
+        if info.isup and any(ext in name.lower() for ext in vpn_keywords):
+            return name
+
+    # 2. Fallback to your original logic
     for name, info in stats.items():
         if info.isup and "loopback" not in name.lower() and "lo" != name:
             if name in addrs:
                 for addr in addrs[name]:
-                    if addr.family == 2:
+                    if addr.family == 2: # IPv4
                         return name 
-                        
-    for name, info in stats.items():
-        if info.isup: return name
-        
-    return "1"
 
+    return "1"
 def get_parser(json_data: Dict[str, any]) -> None:
     p = Parser(json_data)
     return p
@@ -123,6 +128,7 @@ class CaptureThread(QThread):
         self.quest_dict[quest.get_quest_id()] = quest
 
     def run(self):
+        print(f"Sniffing on: {self.interface}")
         with open(KEYLOG_FILE, 'w') as f:
             f.write("") 
 
@@ -130,7 +136,7 @@ class CaptureThread(QThread):
             "tshark",
             "-i", self.interface,
             "-o", f"tls.keylog_file:{KEYLOG_FILE}",
-            "-f", "host steam.granbluefantasy.com",
+            #"-f", "host steam.granbluefantasy.com",
             "-T", "fields",
             "-e", "http2.data.data",
             "-l"
